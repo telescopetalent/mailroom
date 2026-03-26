@@ -1,0 +1,67 @@
+import { useEffect, useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import { api } from "../api/client";
+import ReviewPanel from "../components/ReviewPanel";
+
+interface CaptureData {
+  id: string;
+  source: string;
+  content_type: string;
+  normalized_text: string | null;
+  status: string;
+  captured_at: string;
+  extraction: any | null;
+}
+
+export default function CaptureDetail() {
+  const { id } = useParams<{ id: string }>();
+  const [capture, setCapture] = useState<CaptureData | null>(null);
+  const [error, setError] = useState("");
+
+  const load = () => {
+    if (!id) return;
+    api<CaptureData>(`/captures/${id}`)
+      .then(setCapture)
+      .catch((e) => setError(e.message));
+  };
+
+  useEffect(load, [id]);
+
+  if (error) return <p style={{ color: "red" }}>{error}</p>;
+  if (!capture) return <p>Loading...</p>;
+
+  return (
+    <div style={{ maxWidth: 700 }}>
+      <Link to="/" style={{ color: "#555" }}>Back to Dashboard</Link>
+
+      <h2 style={{ marginTop: "1rem" }}>Capture</h2>
+
+      <div style={{ display: "flex", gap: "1rem", color: "#666", fontSize: "0.85rem", marginBottom: "1rem" }}>
+        <span>Source: {capture.source}</span>
+        <span>Type: {capture.content_type}</span>
+        <span>Status: <strong>{capture.status}</strong></span>
+        <span>{new Date(capture.captured_at).toLocaleString()}</span>
+      </div>
+
+      {capture.normalized_text && (
+        <pre style={{ background: "#f8f9fa", padding: "1rem", borderRadius: "4px", whiteSpace: "pre-wrap", fontSize: "0.9rem" }}>
+          {capture.normalized_text}
+        </pre>
+      )}
+
+      {capture.extraction && capture.status === "review" && (
+        <>
+          <h3 style={{ marginTop: "1.5rem" }}>Review Extraction</h3>
+          <ReviewPanel captureId={capture.id} extraction={capture.extraction} onReviewComplete={load} />
+        </>
+      )}
+
+      {capture.extraction && capture.status === "approved" && (
+        <div style={{ marginTop: "1.5rem", padding: "1rem", background: "#f0fdf4", borderRadius: "4px" }}>
+          <strong>Approved</strong> — items saved as tasks.{" "}
+          <Link to="/tasks">View tasks</Link>
+        </div>
+      )}
+    </div>
+  );
+}

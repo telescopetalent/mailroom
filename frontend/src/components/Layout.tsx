@@ -18,6 +18,9 @@ export default function Layout() {
         <Link to="/" style={{ textDecoration: "none", color: "#555" }}>
           Dashboard
         </Link>
+        <Link to="/tasks" style={{ textDecoration: "none", color: "#555" }}>
+          Tasks
+        </Link>
       </nav>
       <main style={{ flex: 1, padding: "2rem" }}>
         <Outlet />
