@@ -4,11 +4,11 @@
 
 | # | Phase | Goal | Status |
 |---|-------|------|--------|
-| 1 | Product framing and planning | Define product, docs, repo structure | Current |
-| 2 | System design | Architecture, data models, API contracts | Next |
-| 3 | Core platform foundation | Backend skeleton, DB, auth, basic frontend | Planned |
-| 4 | Core engine MVP | Capture pipeline + extraction + review workflow | Planned |
-| 5 | Core external surfaces | Email and Slack connectors | Planned |
+| 1 | Product framing and planning | Define product, docs, repo structure | Done |
+| 2 | System design | Architecture, data models, API contracts | Done |
+| 3 | Core platform foundation | Backend skeleton, DB, auth, basic frontend | Done |
+| 4 | Core engine MVP | Capture pipeline + extraction + review workflow | Done |
+| 5 | Core external surfaces | Email and Slack connectors | Next |
 | 6 | Quality, trust, reliability | Testing, monitoring, error handling, edge cases | Planned |
 | 7 | Native surfaces | iPhone app, iOS share extension, Apple Notes, Chrome extension | Planned |
 | 8 | Ambient capture | Desktop drag-and-drop bin | Planned |
@@ -22,12 +22,12 @@
 
 **Epic 1.1: Repository and documentation setup**
 - [x] Initialize git repo
-- [ ] Create CLAUDE.md with project instructions
-- [ ] Create README.md
-- [ ] Create docs/PRD.md
-- [ ] Create docs/EDD.md
-- [ ] Create docs/IMPLEMENTATION_PLAN.md
-- [ ] Create monorepo folder structure
+- [x] Create CLAUDE.md with project instructions
+- [x] Create README.md
+- [x] Create docs/PRD.md
+- [x] Create docs/EDD.md
+- [x] Create docs/IMPLEMENTATION_PLAN.md
+- [x] Create monorepo folder structure
 
 **Deliverable:** All stakeholders aligned on product definition, architecture, and build sequence.
 
@@ -38,17 +38,17 @@
 ### Milestone: API contracts and data models finalized
 
 **Epic 2.1: Data model definition**
-- [ ] Define Pydantic models for Capture, Extraction, Task
-- [ ] Define enum types (Source, ContentType, Status, Priority)
-- [ ] Define source reference schemas per surface
-- [ ] Define API request/response schemas
+- [x] Define Pydantic models for Capture, Extraction, Task
+- [x] Define enum types (Source, ContentType, Status, Priority)
+- [x] Define source reference schemas per surface
+- [x] Define API request/response schemas
 
 **Epic 2.2: API contract specification**
-- [ ] Define capture CRUD endpoints
-- [ ] Define review workflow endpoints
-- [ ] Define webhook endpoint contracts (email, Slack)
-- [ ] Define task endpoints
-- [ ] Document auth strategy (API keys + JWT)
+- [x] Define capture CRUD endpoints
+- [x] Define review workflow endpoints
+- [x] Define webhook endpoint contracts (email, Slack)
+- [x] Define task endpoints
+- [x] Document auth strategy (API keys + JWT)
 
 **Deliverable:** Typed contracts that frontend and all connectors build against.
 
@@ -59,35 +59,35 @@
 ### Milestone: Running backend + frontend with auth and DB
 
 **Epic 3.1: Backend skeleton**
-- [ ] FastAPI app factory with config
-- [ ] Health check endpoint
-- [ ] Request logging middleware
-- [ ] Error handling middleware
-- [ ] CORS configuration
+- [x] FastAPI app factory with config
+- [x] Health check endpoint
+- [x] Request logging middleware
+- [x] Error handling middleware
+- [x] CORS configuration
 
 **Epic 3.2: Database setup**
-- [ ] PostgreSQL schema (users, workspaces, captures, extractions, tasks, attachments)
-- [ ] Database connection and session management
-- [ ] Migration tooling (Alembic)
+- [x] PostgreSQL schema (users, workspaces, captures, extractions, tasks, attachments)
+- [x] Database connection and session management
+- [x] Migration tooling (Alembic)
 - [ ] Seed data for development
 
 **Epic 3.3: Authentication**
-- [ ] API key generation and validation
-- [ ] JWT token issuance and validation
-- [ ] Auth middleware / dependency injection
-- [ ] User and workspace CRUD
+- [x] API key generation and validation
+- [ ] JWT token issuance and validation (deferred — API keys only for MVP)
+- [x] Auth middleware / dependency injection
+- [x] User and workspace CRUD
 
 **Epic 3.4: File storage**
-- [ ] S3 integration for attachment upload/download
-- [ ] Local file storage adapter for development
+- [x] S3 integration for attachment upload/download
+- [x] Local file storage adapter for development
 - [ ] Content type validation and size limits
 
 **Epic 3.5: Frontend skeleton**
-- [ ] React + TypeScript project setup (Vite)
-- [ ] Routing (React Router)
-- [ ] API client module
-- [ ] Auth flow (login, token management)
-- [ ] Basic layout shell (nav, content area)
+- [x] React + TypeScript project setup (Vite)
+- [x] Routing (React Router)
+- [x] API client module
+- [x] Auth flow (API key entry)
+- [x] Basic layout shell (nav, content area)
 
 **Deliverable:** Deployable backend with DB, auth, file storage. Frontend shell with auth flow.
 
@@ -98,47 +98,47 @@
 ### Milestone: End-to-end capture → extract → review → approve via web app
 
 **Epic 4.1: Capture pipeline — Ingest**
-- [ ] IngestRequest model
-- [ ] Web connector: parse paste/upload input
-- [ ] Attachment handling (upload to S3, create attachment record)
-- [ ] POST /api/v1/captures endpoint wired to pipeline
+- [x] IngestRequest model
+- [x] Web connector: parse paste/upload input
+- [x] Attachment handling (upload to S3, create attachment record)
+- [x] POST /api/v1/captures endpoint wired to pipeline
 
 **Epic 4.2: Capture pipeline — Classify**
-- [ ] Content type detection (text, image, PDF, URL, mixed)
-- [ ] Source metadata extraction
-- [ ] Classification stage function
+- [x] Content type detection (text, image, PDF, URL, mixed)
+- [x] Source metadata extraction
+- [x] Classification stage function
 
 **Epic 4.3: Capture pipeline — Normalize**
-- [ ] Text normalization
-- [ ] OCR for images/screenshots (basic)
-- [ ] PDF text extraction
-- [ ] URL content fetching
-- [ ] Create canonical Capture record in DB
+- [x] Text normalization
+- [ ] OCR for images/screenshots (deferred to Phase 6)
+- [ ] PDF text extraction (deferred to Phase 6)
+- [ ] URL content fetching (deferred to Phase 6)
+- [x] Create canonical Capture record in DB
 
 **Epic 4.4: Capture pipeline — Extract**
-- [ ] Model provider abstraction (interface)
-- [ ] Anthropic provider implementation
-- [ ] Extraction prompt engineering
-- [ ] Structured output parsing (summary, tasks, owners, etc.)
-- [ ] Extraction record saved to DB
+- [x] Model provider abstraction (interface)
+- [x] Anthropic provider implementation
+- [x] Extraction prompt engineering
+- [x] Structured output parsing (summary, tasks, owners, etc.)
+- [x] Extraction record saved to DB
 
 **Epic 4.5: Capture pipeline — Orchestrator**
-- [ ] Pipeline orchestrator: ingest → classify → normalize → extract
-- [ ] Error handling per stage
-- [ ] Status tracking (pending → processing → review)
+- [x] Pipeline orchestrator: ingest → classify → normalize → extract
+- [x] Error handling per stage
+- [x] Status tracking (pending → processing → review)
 
 **Epic 4.6: Review workflow**
-- [ ] GET /api/v1/captures with extraction data
-- [ ] PATCH /api/v1/captures/{id}/review — approve/reject items
-- [ ] Approved items → approved_tasks table
-- [ ] Source traceability preserved on approved tasks
+- [x] GET /api/v1/captures with extraction data
+- [x] PATCH /api/v1/captures/{id}/review — approve/reject items
+- [x] Approved items → approved_tasks table
+- [x] Source traceability preserved on approved tasks
 
 **Epic 4.7: Web app capture + review UI**
-- [ ] Capture input component (text paste, file upload)
-- [ ] Capture list/feed view
-- [ ] Capture detail view with extraction results
-- [ ] Review interface (approve/edit/reject per item)
-- [ ] Approved tasks list view
+- [x] Capture input component (text paste, file upload)
+- [x] Capture list/feed view
+- [x] Capture detail view with extraction results
+- [x] Review interface (approve/edit/reject per item)
+- [x] Approved tasks list view
 
 **Deliverable:** A user can paste text or upload a file in the web app, see AI-extracted actions, review and approve them, and view saved tasks — all with source traceability.
 
