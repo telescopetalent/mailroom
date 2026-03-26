@@ -1,0 +1,326 @@
+# Mailroom — Engineering Design Document
+
+## 1. Architecture Overview
+
+Mailroom follows a **thin-client, fat-pipeline** architecture. All intelligence and business logic lives in the backend. Clients are input/output shells that send raw content and display structured results.
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   Capture Surfaces                   │
+│  Web App │ Email │ Slack │ iOS │ Chrome │ Desktop    │
+└─────────┬───────┬───────┬─────┬────────┬────────────┘
+          │       │       │     │        │
+          ▼       ▼       ▼     ▼        ▼
+┌─────────────────────────────────────────────────────┐
+│                    API Gateway                       │
+│              (FastAPI + Auth Layer)                   │
+└──────────────────────┬──────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│                 Capture Pipeline                     │
+│  Ingest → Classify → Normalize → Extract → Review   │
+└──────────────────────┬──────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│                   Data Layer                         │
+│           PostgreSQL + S3 (attachments)              │
+└─────────────────────────────────────────────────────┘
+```
+
+## 2. Backend Architecture
+
+### 2.1 API Layer (FastAPI)
+
+```
+backend/app/
+├── main.py                  # FastAPI app factory
+├── api/
+│   ├── captures.py          # POST /captures, GET /captures, etc.
+│   ├── reviews.py           # Review workflow endpoints
+│   ├── tasks.py             # Approved task endpoints
+│   ├── webhooks.py          # Inbound webhooks (email, Slack)
+│   └── health.py            # Health check
+├── core/
+│   ├── config.py            # Settings from env vars
+│   ├── auth.py              # Authentication / API keys
+│   ├── middleware.py         # Request logging, error handling
+│   └── dependencies.py      # FastAPI dependency injection
+├── models/
+│   ├── capture.py           # Canonical capture object
+│   ├── extraction.py        # Structured output schema
+│   ├── task.py              # Approved task model
+│   ├── user.py              # User / workspace models
+│   └── enums.py             # Shared enums (source, content_type, status)
+├── pipeline/
+│   ├── orchestrator.py      # Pipeline coordinator
+│   ├── ingest.py            # Raw input ingestion
+│   ├── classify.py          # Source + content type classification
+│   ├── normalize.py         # Normalization to canonical format
+│   ├── extract.py           # AI-powered structured extraction
+│   └── ocr.py               # Image/PDF text extraction
+├── connectors/
+│   ├── base.py              # Base connector interface
+│   ├── web.py               # Web app connector
+│   ├── email.py             # Email connector (inbound parsing)
+│   ├── slack.py             # Slack connector (events API)
+│   └── chrome.py            # Chrome extension connector
+├── services/
+│   ├── model_provider.py    # LLM abstraction (Anthropic / Gemini)
+│   ├── storage.py           # S3 file storage
+│   └── workspace.py         # Workspace/tenant management
+└── tests/
+```
+
+### 2.2 Capture Pipeline
+
+The pipeline is the core of Mailroom. Every surface funnels into the same pipeline stages:
+
+```
+Stage 1: INGEST
+  Input:  Raw request from any surface
+  Output: IngestResult(raw_content, source, user_id, workspace_id, attachments)
+
+Stage 2: CLASSIFY
+  Input:  IngestResult
+  Output: ClassifyResult(content_type, source_metadata)
+
+Stage 3: NORMALIZE
+  Input:  IngestResult + ClassifyResult
+  Output: Capture (canonical capture object)
+
+Stage 4: EXTRACT
+  Input:  Capture
+  Output: Extraction (summary, tasks, owners, due_dates, etc.)
+
+Stage 5: REVIEW (user-facing)
+  Input:  Capture + Extraction
+  Output: ReviewDecision (approved/rejected items)
+```
+
+Each stage is an independent, testable function. The orchestrator coordinates them sequentially.
+
+### 2.3 Connector Interface
+
+Every capture surface implements a connector that translates surface-specific input into a common `IngestRequest`:
+
+```python
+class BaseConnector:
+    """Translates surface-specific input into IngestRequest."""
+
+    def parse_request(self, raw_input: Any) -> IngestRequest:
+        """Parse surface-specific input into common format."""
+        ...
+
+    def format_response(self, extraction: Extraction) -> Any:
+        """Format extraction result for surface-specific response."""
+        ...
+```
+
+This keeps surface-specific logic isolated and makes adding new surfaces straightforward.
+
+### 2.4 Model Provider Abstraction
+
+```python
+class ModelProvider:
+    """Abstract interface for LLM calls."""
+
+    async def extract(self, text: str, prompt: str) -> ExtractionResult:
+        """Run structured extraction on normalized text."""
+        ...
+```
+
+Implementations: `AnthropicProvider`, `GeminiProvider`. The provider is selected via config. This allows switching or A/B testing models without changing pipeline code.
+
+## 3. Data Models
+
+### 3.1 Core Tables
+
+```
+users
+  id              UUID PK
+  email           TEXT UNIQUE
+  name            TEXT
+  created_at      TIMESTAMP
+
+workspaces
+  id              UUID PK
+  name            TEXT
+  created_at      TIMESTAMP
+
+workspace_members
+  workspace_id    UUID FK → workspaces
+  user_id         UUID FK → users
+  role            TEXT
+
+captures
+  id              UUID PK
+  workspace_id    UUID FK → workspaces
+  user_id         UUID FK → users
+  source          TEXT (enum: web, email, slack, ios, chrome, desktop)
+  source_ref      JSONB
+  content_type    TEXT (enum: text, image, pdf, screenshot, url, mixed)
+  raw_content     JSONB
+  normalized_text TEXT
+  status          TEXT (enum: pending, processing, review, approved, rejected)
+  captured_at     TIMESTAMP
+  created_at      TIMESTAMP
+
+extractions
+  id              UUID PK
+  capture_id      UUID FK → captures
+  summary         TEXT
+  next_steps      JSONB
+  tasks           JSONB
+  owners          JSONB
+  due_dates       JSONB
+  blockers        JSONB
+  follow_ups      JSONB
+  priority        TEXT (enum: high, medium, low, none)
+  source_refs     JSONB
+  model_provider  TEXT
+  model_id        TEXT
+  created_at      TIMESTAMP
+
+approved_tasks
+  id              UUID PK
+  extraction_id   UUID FK → extractions
+  capture_id      UUID FK → captures
+  workspace_id    UUID FK → workspaces
+  title           TEXT
+  description     TEXT
+  owner           TEXT
+  due_date        DATE
+  priority        TEXT
+  source_ref      JSONB
+  status          TEXT (enum: open, completed)
+  approved_at     TIMESTAMP
+  created_at      TIMESTAMP
+
+attachments
+  id              UUID PK
+  capture_id      UUID FK → captures
+  filename        TEXT
+  content_type    TEXT
+  s3_key          TEXT
+  size_bytes      INTEGER
+  created_at      TIMESTAMP
+```
+
+### 3.2 Source Reference Schema
+
+Source references preserve traceability:
+
+```json
+{
+  "source": "email",
+  "email_message_id": "<abc123@example.com>",
+  "email_from": "sender@example.com",
+  "email_subject": "Q3 planning notes",
+  "received_at": "2026-03-25T10:30:00Z"
+}
+```
+
+```json
+{
+  "source": "slack",
+  "channel_id": "C01234",
+  "channel_name": "#project-alpha",
+  "message_ts": "1711363800.000100",
+  "thread_ts": "1711363700.000050",
+  "permalink": "https://workspace.slack.com/archives/..."
+}
+```
+
+## 4. API Design
+
+### 4.1 Core Endpoints
+
+```
+POST   /api/v1/captures              Create a new capture (web app, API clients)
+GET    /api/v1/captures              List captures for workspace
+GET    /api/v1/captures/{id}         Get capture with extraction
+PATCH  /api/v1/captures/{id}/review  Submit review decisions
+
+POST   /api/v1/webhooks/email        Inbound email webhook
+POST   /api/v1/webhooks/slack        Slack events webhook
+
+GET    /api/v1/tasks                 List approved tasks
+GET    /api/v1/tasks/{id}            Get task with source traceability
+PATCH  /api/v1/tasks/{id}            Update task status
+
+GET    /api/v1/health                Health check
+```
+
+### 4.2 Authentication
+
+- API key per workspace for programmatic access
+- JWT tokens for web app sessions
+- Webhook verification for email and Slack
+- All connectors authenticate before hitting the pipeline
+
+## 5. Frontend Architecture
+
+### 5.1 Web App (React + TypeScript)
+
+The web app is one capture surface plus the primary review interface:
+
+```
+frontend/src/
+├── App.tsx
+├── api/                    # API client
+├── components/
+│   ├── capture/            # Capture input (paste, upload)
+│   ├── review/             # Review workflow UI
+│   ├── tasks/              # Approved tasks list
+│   └── common/             # Shared UI components
+├── hooks/                  # React hooks
+├── pages/
+│   ├── Dashboard.tsx       # Capture + review feed
+│   ├── CaptureDetail.tsx   # Single capture + extraction
+│   └── Tasks.tsx           # Approved tasks
+├── types/                  # TypeScript types (mirror backend models)
+└── utils/
+```
+
+### 5.2 Client Surfaces (Future)
+
+All thin clients follow the same pattern:
+1. Authenticate with API key or JWT
+2. Send raw content to `POST /api/v1/captures`
+3. Optionally display extraction result inline
+
+## 6. Infrastructure (AWS)
+
+### MVP
+- **Compute:** ECS Fargate or Lambda (FastAPI)
+- **Database:** RDS PostgreSQL
+- **Storage:** S3 (attachments, raw files)
+- **Email:** SES (inbound email receiving)
+- **Queue:** SQS (async pipeline processing)
+
+### Future
+- CloudFront (CDN for frontend)
+- ElastiCache (caching)
+- API Gateway (rate limiting, API key management)
+
+## 7. Key Design Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Monorepo | Yes | Shared types, single CI, easier early iteration |
+| Sync pipeline first | Yes | Simpler to build, async can be added later for heavy workloads |
+| PostgreSQL | JSONB for flexible fields | Source refs and extraction outputs vary by type |
+| Model abstraction | Provider interface | Swap/test models without pipeline changes |
+| No ORM initially | Raw SQL or SQLAlchemy Core | Avoid ORM complexity early; upgrade later if needed |
+| Webhook-based connectors | Pull not push | Email and Slack push to us; we don't poll |
+
+## 8. Security Considerations
+
+- All API endpoints require authentication
+- Webhook endpoints verify signatures (Slack signing secret, email DKIM)
+- File uploads scanned for size limits, content type validation
+- No PII in logs
+- S3 bucket not publicly accessible
+- Environment variables for all secrets
