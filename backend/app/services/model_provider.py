@@ -16,18 +16,18 @@ EXTRACTION_PROMPT = """You are an action extraction engine. Analyze the followin
 Return a JSON object with these fields:
 - "summary": A brief 1-2 sentence summary of the content
 - "next_steps": Array of strings — identified next actions
-- "tasks": Array of objects with {title, description, owner, due_date, priority}
+- "tasks": Array of objects with (title, description, owner, due_date, priority)
   - owner: only include if explicitly mentioned (name or role)
   - due_date: only include if explicitly mentioned (ISO format YYYY-MM-DD)
   - priority: "high", "medium", "low", or "none"
 - "owners": Array of strings — all people/roles mentioned as responsible
-- "due_dates": Array of objects with {description, date, source_text}
+- "due_dates": Array of objects with (description, date, source_text)
   - date: ISO format YYYY-MM-DD if parseable, null otherwise
   - source_text: the original text that mentioned the deadline
 - "blockers": Array of strings — identified blockers or dependencies
-- "follow_ups": Array of objects with {description, owner, due_date}
+- "follow_ups": Array of objects with (description, owner, due_date)
 - "priority": Overall priority of the content: "high", "medium", "low", or "none"
-- "source_references": Array of objects with {source, url, description}
+- "source_references": Array of objects with (source, url, description)
 
 Rules:
 - Only extract what is explicitly stated in the content

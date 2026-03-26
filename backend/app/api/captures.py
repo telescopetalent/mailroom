@@ -25,44 +25,47 @@ from app.services.model_provider import get_model_provider
 router = APIRouter(prefix="/captures", tags=["captures"])
 
 
-def _capture_to_response(capture: CaptureRow, extraction: ExtractionRow | None, attachment_count: int) -> CaptureResponse:
-    """Convert DB rows to API response."""
-    ext = None
-    if extraction:
-        ext = Extraction(
-            id=extraction.id,
-            capture_id=extraction.capture_id,
-            summary=extraction.summary,
-            next_steps=extraction.next_steps or [],
-            tasks=extraction.tasks or [],
-            owners=extraction.owners or [],
-            due_dates=extraction.due_dates or [],
-            blockers=extraction.blockers or [],
-            follow_ups=extraction.follow_ups or [],
-            priority=extraction.priority or "none",
-            source_references=extraction.source_references or [],
-            model_provider=extraction.model_provider,
-            model_id=extraction.model_id,
-            created_at=extraction.created_at,
-        )
-
-    return CaptureResponse(
-        id=capture.id,
-        workspace_id=capture.workspace_id,
-        user_id=capture.user_id,
-        source=capture.source,
-        source_ref=capture.source_ref,
-        content_type=capture.content_type,
-        normalized_text=capture.normalized_text,
-        status=capture.status,
-        captured_at=capture.captured_at,
-        created_at=capture.created_at,
-        extraction=ext,
-        attachment_count=attachment_count,
-    )
+def _extraction_to_dict(extraction: ExtractionRow) -> dict:
+    """Convert ExtractionRow to a plain dict for JSON serialization."""
+    return {
+        "id": str(extraction.id),
+        "capture_id": str(extraction.capture_id),
+        "summary": extraction.summary,
+        "next_steps": extraction.next_steps or [],
+        "tasks": extraction.tasks or [],
+        "owners": extraction.owners or [],
+        "due_dates": extraction.due_dates or [],
+        "blockers": extraction.blockers or [],
+        "follow_ups": extraction.follow_ups or [],
+        "priority": extraction.priority or "none",
+        "source_references": extraction.source_references or [],
+        "model_provider": extraction.model_provider,
+        "model_id": extraction.model_id,
+        "created_at": extraction.created_at.isoformat() if extraction.created_at else None,
+    }
 
 
-@router.post("", response_model=CaptureResponse, status_code=status.HTTP_201_CREATED)
+def _capture_to_response(capture: CaptureRow, extraction: ExtractionRow | None, attachment_count: int) -> dict:
+    """Convert DB rows to API response dict."""
+    ext = _extraction_to_dict(extraction) if extraction else None
+
+    return {
+        "id": str(capture.id),
+        "workspace_id": str(capture.workspace_id),
+        "user_id": str(capture.user_id),
+        "source": capture.source,
+        "source_ref": capture.source_ref,
+        "content_type": capture.content_type,
+        "normalized_text": capture.normalized_text,
+        "status": capture.status,
+        "captured_at": capture.captured_at.isoformat() if capture.captured_at else None,
+        "created_at": capture.created_at.isoformat() if capture.created_at else None,
+        "extraction": ext,
+        "attachment_count": attachment_count,
+    }
+
+
+@router.post("", response_model=None, status_code=status.HTTP_201_CREATED)
 def create_capture(
     body: CreateCaptureRequest,
     current_user: dict = Depends(get_current_user),
@@ -95,7 +98,7 @@ def create_capture(
     return _capture_to_response(capture, extraction, attachment_count)
 
 
-@router.get("", response_model=CaptureListResponse)
+@router.get("", response_model=None)
 def list_captures(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -118,18 +121,18 @@ def list_captures(
         att_count = db.query(AttachmentRow).filter(AttachmentRow.capture_id == cap.id).count()
         items.append(_capture_to_response(cap, ext, att_count))
 
-    return CaptureListResponse(
-        items=items,
-        pagination=PaginationMeta(
-            page=page,
-            page_size=page_size,
-            total_count=total,
-            total_pages=max(1, math.ceil(total / page_size)),
-        ),
-    )
+    return {
+        "items": items,
+        "pagination": {
+            "page": page,
+            "page_size": page_size,
+            "total_count": total,
+            "total_pages": max(1, math.ceil(total / page_size)),
+        },
+    }
 
 
-@router.get("/{capture_id}", response_model=CaptureResponse)
+@router.get("/{capture_id}", response_model=None)
 def get_capture(
     capture_id: UUID,
     current_user: dict = Depends(get_current_user),
