@@ -74,7 +74,11 @@ def create_capture(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Create a new capture and run it through the pipeline."""
+    """Create a new capture and run it through the pipeline.
+
+    mode="ai" (default): full pipeline with AI extraction.
+    mode="manual": user provides extraction data, skips AI.
+    """
     connector = WebConnector()
     pipeline_args = connector.parse_request(
         body,
@@ -82,15 +86,47 @@ def create_capture(
         workspace_id=current_user["workspace_id"],
     )
 
-    provider = get_model_provider()
+    if body.mode == "manual":
+        from app.pipeline.ingest import ingest
+        from app.pipeline.classify import classify
+        from app.pipeline.normalize import normalize
 
-    capture, extraction = run_pipeline(
-        user_id=current_user["user_id"],
-        workspace_id=current_user["workspace_id"],
-        provider=provider,
-        db=db,
-        **pipeline_args,
-    )
+        ingest_result = ingest(
+            user_id=current_user["user_id"],
+            workspace_id=current_user["workspace_id"],
+            **pipeline_args,
+        )
+        classify_result = classify(ingest_result)
+        capture = normalize(ingest_result, classify_result, db)
+
+        # Build extraction from manual input
+        manual = body.manual_extraction
+        extraction = ExtractionRow(
+            capture_id=capture.id,
+            summary=manual.summary if manual else None,
+            tasks=[t for t in (manual.tasks if manual else [])],
+            next_steps=manual.next_steps if manual else [],
+            blockers=manual.blockers if manual else [],
+            follow_ups=[f for f in (manual.follow_ups if manual else [])],
+            owners=[],
+            due_dates=[],
+            priority=manual.priority if manual else "none",
+            source_references=[],
+            model_provider="manual",
+            model_id=None,
+        )
+        db.add(extraction)
+        capture.status = "review"
+    else:
+        provider = get_model_provider()
+
+        capture, extraction = run_pipeline(
+            user_id=current_user["user_id"],
+            workspace_id=current_user["workspace_id"],
+            provider=provider,
+            db=db,
+            **pipeline_args,
+        )
 
     db.commit()
     db.refresh(capture)

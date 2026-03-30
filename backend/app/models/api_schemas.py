@@ -49,6 +49,17 @@ class PaginationMeta(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class ManualExtractionInput(BaseModel):
+    """User-provided extraction data for manual captures (no AI)."""
+
+    summary: Optional[str] = None
+    tasks: list[dict[str, Any]] = Field(default_factory=list)
+    next_steps: list[str] = Field(default_factory=list)
+    blockers: list[str] = Field(default_factory=list)
+    follow_ups: list[dict[str, Any]] = Field(default_factory=list)
+    priority: Priority = Priority.NONE
+
+
 class CreateCaptureRequest(BaseModel):
     """Request body for POST /api/v1/captures.
 
@@ -60,6 +71,8 @@ class CreateCaptureRequest(BaseModel):
     content_text: Optional[str] = None
     content_url: Optional[str] = None
     source_ref: Optional[dict[str, Any]] = None
+    mode: str = "ai"  # "ai" or "manual"
+    manual_extraction: Optional[ManualExtractionInput] = None
 
 
 class CaptureResponse(BaseModel):
