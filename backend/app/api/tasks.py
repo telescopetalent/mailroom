@@ -44,6 +44,7 @@ def _task_to_response(task: ApprovedTaskRow, source: str) -> TaskResponse:
 def list_tasks(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    status: str = Query(None, description="Filter by status: open, completed"),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -53,6 +54,9 @@ def list_tasks(
         .filter(ApprovedTaskRow.workspace_id == current_user["workspace_id"])
         .order_by(ApprovedTaskRow.created_at.desc())
     )
+
+    if status:
+        query = query.filter(ApprovedTaskRow.status == status)
 
     total = query.count()
     tasks = query.offset((page - 1) * page_size).limit(page_size).all()

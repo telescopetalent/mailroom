@@ -146,8 +146,8 @@ class TaskResponse(BaseModel):
     status: TaskStatus
     source: CaptureSource
     source_ref: Optional[dict[str, Any]] = None
-    capture_id: UUID
-    extraction_id: UUID
+    capture_id: Optional[UUID] = None
+    extraction_id: Optional[UUID] = None
     approved_at: datetime
     created_at: datetime
 

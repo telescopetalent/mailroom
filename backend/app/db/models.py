@@ -182,10 +182,10 @@ class ApprovedTaskRow(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     extraction_id = Column(
-        UUID(as_uuid=True), ForeignKey("extractions.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("extractions.id", ondelete="SET NULL"), nullable=True
     )
     capture_id = Column(
-        UUID(as_uuid=True), ForeignKey("captures.id"), nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("captures.id", ondelete="SET NULL"), nullable=True, index=True
     )
     workspace_id = Column(
         UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False, index=True

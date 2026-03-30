@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.connectors.web import WebConnector
 from app.core.auth import get_current_user
 from app.core.database import get_db
-from app.db.models import AttachmentRow, CaptureRow, ExtractionRow
+from app.db.models import ApprovedTaskRow, AttachmentRow, CaptureRow, ExtractionRow
 from app.models.api_schemas import (
     CaptureListResponse,
     CaptureResponse,
@@ -235,6 +235,9 @@ def permanently_delete_all_trashed(
     )
 
     for cap in trashed:
+        db.query(ApprovedTaskRow).filter(ApprovedTaskRow.capture_id == cap.id).update(
+            {"capture_id": None, "extraction_id": None}, synchronize_session="fetch"
+        )
         db.query(ExtractionRow).filter(ExtractionRow.capture_id == cap.id).delete()
         db.query(AttachmentRow).filter(AttachmentRow.capture_id == cap.id).delete()
         db.delete(cap)
@@ -351,6 +354,10 @@ def permanently_delete_capture(
     if not capture:
         raise HTTPException(status_code=404, detail="Trashed capture not found")
 
+    # Orphan approved tasks — they survive capture deletion
+    db.query(ApprovedTaskRow).filter(ApprovedTaskRow.capture_id == capture.id).update(
+        {"capture_id": None, "extraction_id": None}, synchronize_session="fetch"
+    )
     # Delete related rows
     db.query(ExtractionRow).filter(ExtractionRow.capture_id == capture.id).delete()
     db.query(AttachmentRow).filter(AttachmentRow.capture_id == capture.id).delete()
