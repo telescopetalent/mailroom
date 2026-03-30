@@ -48,6 +48,7 @@ class CaptureStatus(StrEnum):
     REVIEW = "review"
     APPROVED = "approved"
     REJECTED = "rejected"
+    TRASHED = "trashed"
 
 
 class Priority(StrEnum):

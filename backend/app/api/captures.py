@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import math
+from datetime import datetime
+from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.connectors.web import WebConnector
@@ -105,10 +108,13 @@ def list_captures(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List captures for the current workspace."""
+    """List captures for the current workspace (excludes trashed)."""
     query = (
         db.query(CaptureRow)
-        .filter(CaptureRow.workspace_id == current_user["workspace_id"])
+        .filter(
+            CaptureRow.workspace_id == current_user["workspace_id"],
+            CaptureRow.status != "trashed",
+        )
         .order_by(CaptureRow.created_at.desc())
     )
 
@@ -130,6 +136,79 @@ def list_captures(
             "total_pages": max(1, math.ceil(total / page_size)),
         },
     }
+
+
+# ---------------------------------------------------------------------------
+# Trash endpoints (must be before /{capture_id} to avoid route conflicts)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/trash", response_model=None)
+def list_trashed_captures(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List trashed captures for the current workspace."""
+    query = (
+        db.query(CaptureRow)
+        .filter(
+            CaptureRow.workspace_id == current_user["workspace_id"],
+            CaptureRow.status == "trashed",
+        )
+        .order_by(CaptureRow.trashed_at.desc())
+    )
+
+    total = query.count()
+    captures = query.offset((page - 1) * page_size).limit(page_size).all()
+
+    items = []
+    for cap in captures:
+        ext = db.query(ExtractionRow).filter(ExtractionRow.capture_id == cap.id).first()
+        att_count = db.query(AttachmentRow).filter(AttachmentRow.capture_id == cap.id).count()
+        resp = _capture_to_response(cap, ext, att_count)
+        resp["trashed_at"] = cap.trashed_at.isoformat() if cap.trashed_at else None
+        resp["previous_status"] = cap.previous_status
+        items.append(resp)
+
+    return {
+        "items": items,
+        "pagination": {
+            "page": page,
+            "page_size": page_size,
+            "total_count": total,
+            "total_pages": max(1, math.ceil(total / page_size)),
+        },
+    }
+
+
+@router.post("/trash/delete-all", status_code=status.HTTP_204_NO_CONTENT)
+def permanently_delete_all_trashed(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Permanently delete all trashed captures in the workspace."""
+    trashed = (
+        db.query(CaptureRow)
+        .filter(
+            CaptureRow.workspace_id == current_user["workspace_id"],
+            CaptureRow.status == "trashed",
+        )
+        .all()
+    )
+
+    for cap in trashed:
+        db.query(ExtractionRow).filter(ExtractionRow.capture_id == cap.id).delete()
+        db.query(AttachmentRow).filter(AttachmentRow.capture_id == cap.id).delete()
+        db.delete(cap)
+
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Single capture endpoints (after /trash to avoid route conflicts)
+# ---------------------------------------------------------------------------
 
 
 @router.get("/{capture_id}", response_model=None)
@@ -154,3 +233,90 @@ def get_capture(
     att_count = db.query(AttachmentRow).filter(AttachmentRow.capture_id == capture.id).count()
 
     return _capture_to_response(capture, extraction, att_count)
+
+
+@router.post("/{capture_id}/trash", response_model=None)
+def trash_capture(
+    capture_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Move a capture to trash."""
+    capture = (
+        db.query(CaptureRow)
+        .filter(
+            CaptureRow.id == capture_id,
+            CaptureRow.workspace_id == current_user["workspace_id"],
+        )
+        .first()
+    )
+    if not capture:
+        raise HTTPException(status_code=404, detail="Capture not found")
+    if capture.status == "trashed":
+        raise HTTPException(status_code=400, detail="Capture is already trashed")
+
+    capture.previous_status = capture.status
+    capture.status = "trashed"
+    capture.trashed_at = datetime.utcnow()
+    db.commit()
+    db.refresh(capture)
+
+    ext = db.query(ExtractionRow).filter(ExtractionRow.capture_id == capture.id).first()
+    att_count = db.query(AttachmentRow).filter(AttachmentRow.capture_id == capture.id).count()
+    return _capture_to_response(capture, ext, att_count)
+
+
+@router.post("/{capture_id}/restore", response_model=None)
+def restore_capture(
+    capture_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Restore a capture from trash."""
+    capture = (
+        db.query(CaptureRow)
+        .filter(
+            CaptureRow.id == capture_id,
+            CaptureRow.workspace_id == current_user["workspace_id"],
+            CaptureRow.status == "trashed",
+        )
+        .first()
+    )
+    if not capture:
+        raise HTTPException(status_code=404, detail="Trashed capture not found")
+
+    capture.status = capture.previous_status or "review"
+    capture.previous_status = None
+    capture.trashed_at = None
+    db.commit()
+    db.refresh(capture)
+
+    ext = db.query(ExtractionRow).filter(ExtractionRow.capture_id == capture.id).first()
+    att_count = db.query(AttachmentRow).filter(AttachmentRow.capture_id == capture.id).count()
+    return _capture_to_response(capture, ext, att_count)
+
+
+@router.delete("/{capture_id}", status_code=status.HTTP_204_NO_CONTENT)
+def permanently_delete_capture(
+    capture_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Permanently delete a trashed capture."""
+    capture = (
+        db.query(CaptureRow)
+        .filter(
+            CaptureRow.id == capture_id,
+            CaptureRow.workspace_id == current_user["workspace_id"],
+            CaptureRow.status == "trashed",
+        )
+        .first()
+    )
+    if not capture:
+        raise HTTPException(status_code=404, detail="Trashed capture not found")
+
+    # Delete related rows
+    db.query(ExtractionRow).filter(ExtractionRow.capture_id == capture.id).delete()
+    db.query(AttachmentRow).filter(AttachmentRow.capture_id == capture.id).delete()
+    db.delete(capture)
+    db.commit()

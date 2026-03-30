@@ -38,6 +38,7 @@ class WorkspaceRow(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String, nullable=False)
+    trash_retention_days = Column(Integer, default=30, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
@@ -96,7 +97,7 @@ CONTENT_TYPE_ENUM = Enum(
 )
 
 CAPTURE_STATUS_ENUM = Enum(
-    "pending", "processing", "review", "approved", "rejected", name="capture_status"
+    "pending", "processing", "review", "approved", "rejected", "trashed", name="capture_status"
 )
 
 PRIORITY_ENUM = Enum("high", "medium", "low", "none", name="priority")
@@ -120,7 +121,9 @@ class CaptureRow(Base):
     raw_content = Column(JSONB, default=dict)
     normalized_text = Column(Text)
     status = Column(CAPTURE_STATUS_ENUM, default="pending", nullable=False)
+    previous_status = Column(String, nullable=True)
     captured_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    trashed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 

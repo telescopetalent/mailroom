@@ -3,6 +3,10 @@ import { Link } from "react-router-dom";
 import { api, getApiKey, setApiKey } from "../api/client";
 import CaptureInput from "../components/CaptureInput";
 
+async function trashCapture(id: string): Promise<void> {
+  await api(`/captures/${id}/trash`, { method: "POST" });
+}
+
 interface CaptureItem {
   id: string;
   source: string;
@@ -86,39 +90,67 @@ export default function Dashboard() {
       {captures.length === 0 && <p style={{ color: "#888" }}>No captures yet. Paste some text above to get started.</p>}
 
       {captures.map((cap) => (
-        <Link
+        <div
           key={cap.id}
-          to={`/captures/${cap.id}`}
           style={{
-            display: "block",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
             padding: "0.75rem",
             marginBottom: "0.5rem",
             border: "1px solid #e2e2e2",
             borderRadius: "4px",
-            textDecoration: "none",
-            color: "inherit",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <strong>{cap.extraction?.summary || cap.normalized_text?.slice(0, 80) || "Capture"}</strong>
+          <Link
+            to={`/captures/${cap.id}`}
+            style={{
+              flex: 1,
+              textDecoration: "none",
+              color: "inherit",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <strong>{cap.extraction?.summary || cap.normalized_text?.slice(0, 80) || "Capture"}</strong>
+              </div>
+              <span
+                style={{
+                  fontSize: "0.75rem",
+                  padding: "0.15rem 0.5rem",
+                  borderRadius: "3px",
+                  background: cap.status === "review" ? "#fef3c7" : cap.status === "approved" ? "#dcfce7" : "#f3f4f6",
+                  color: cap.status === "review" ? "#92400e" : cap.status === "approved" ? "#166534" : "#555",
+                }}
+              >
+                {cap.status}
+              </span>
             </div>
-            <span
-              style={{
-                fontSize: "0.75rem",
-                padding: "0.15rem 0.5rem",
-                borderRadius: "3px",
-                background: cap.status === "review" ? "#fef3c7" : cap.status === "approved" ? "#dcfce7" : "#f3f4f6",
-                color: cap.status === "review" ? "#92400e" : cap.status === "approved" ? "#166534" : "#555",
-              }}
-            >
-              {cap.status}
-            </span>
-          </div>
-          <div style={{ color: "#999", fontSize: "0.8rem", marginTop: "0.25rem" }}>
-            {cap.source} | {cap.content_type} | {new Date(cap.captured_at).toLocaleString()}
-          </div>
-        </Link>
+            <div style={{ color: "#999", fontSize: "0.8rem", marginTop: "0.25rem" }}>
+              {cap.source} | {cap.content_type} | {new Date(cap.captured_at).toLocaleString()}
+            </div>
+          </Link>
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              await trashCapture(cap.id);
+              loadCaptures();
+            }}
+            title="Move to trash"
+            style={{
+              padding: "0.3rem 0.5rem",
+              background: "transparent",
+              border: "1px solid #d1d5db",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontSize: "0.8rem",
+              color: "#999",
+              flexShrink: 0,
+            }}
+          >
+            Trash
+          </button>
+        </div>
       ))}
     </div>
   );

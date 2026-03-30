@@ -145,9 +145,10 @@ users
   created_at      TIMESTAMP
 
 workspaces
-  id              UUID PK
-  name            TEXT
-  created_at      TIMESTAMP
+  id                    UUID PK
+  name                  TEXT
+  trash_retention_days  INTEGER (default 30)
+  created_at            TIMESTAMP
 
 workspace_members
   workspace_id    UUID FK → workspaces
@@ -163,8 +164,10 @@ captures
   content_type    TEXT (enum: text, image, pdf, screenshot, url, mixed)
   raw_content     JSONB
   normalized_text TEXT
-  status          TEXT (enum: pending, processing, review, approved, rejected)
+  status          TEXT (enum: pending, processing, review, approved, rejected, trashed)
+  previous_status TEXT (nullable — stores status before trashing for restore)
   captured_at     TIMESTAMP
+  trashed_at      TIMESTAMP (nullable)
   created_at      TIMESTAMP
 
 extractions
@@ -239,9 +242,14 @@ Source references preserve traceability:
 
 ```
 POST   /api/v1/captures              Create a new capture (web app, API clients)
-GET    /api/v1/captures              List captures for workspace
+GET    /api/v1/captures              List captures for workspace (excludes trashed)
 GET    /api/v1/captures/{id}         Get capture with extraction
 PATCH  /api/v1/captures/{id}/review  Submit review decisions
+POST   /api/v1/captures/{id}/trash   Move capture to trash
+POST   /api/v1/captures/{id}/restore Restore capture from trash
+DELETE /api/v1/captures/{id}         Permanently delete a trashed capture
+GET    /api/v1/captures/trash        List trashed captures
+POST   /api/v1/captures/trash/delete-all  Empty trash (permanently delete all)
 
 POST   /api/v1/webhooks/email        Inbound email webhook
 POST   /api/v1/webhooks/slack        Slack events webhook
@@ -249,6 +257,9 @@ POST   /api/v1/webhooks/slack        Slack events webhook
 GET    /api/v1/tasks                 List approved tasks
 GET    /api/v1/tasks/{id}            Get task with source traceability
 PATCH  /api/v1/tasks/{id}            Update task status
+
+GET    /api/v1/workspaces/current           Get current workspace
+PATCH  /api/v1/workspaces/current/settings  Update workspace settings (trash retention)
 
 GET    /api/v1/health                Health check
 ```

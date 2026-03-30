@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import ReviewPanel from "../components/ReviewPanel";
 
@@ -15,6 +15,7 @@ interface CaptureData {
 
 export default function CaptureDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [capture, setCapture] = useState<CaptureData | null>(null);
   const [error, setError] = useState("");
 
@@ -32,7 +33,28 @@ export default function CaptureDetail() {
 
   return (
     <div style={{ maxWidth: 700 }}>
-      <Link to="/" style={{ color: "#555" }}>Back to Dashboard</Link>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Link to="/" style={{ color: "#555" }}>Back to Dashboard</Link>
+        {capture.status !== "trashed" && (
+          <button
+            onClick={async () => {
+              await api(`/captures/${capture.id}/trash`, { method: "POST" });
+              navigate("/");
+            }}
+            style={{
+              padding: "0.3rem 0.7rem",
+              background: "transparent",
+              border: "1px solid #d1d5db",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontSize: "0.85rem",
+              color: "#999",
+            }}
+          >
+            Move to Trash
+          </button>
+        )}
+      </div>
 
       <h2 style={{ marginTop: "1rem" }}>Capture</h2>
 
