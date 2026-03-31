@@ -268,6 +268,7 @@ GET    /api/v1/captures/{id}         Get capture with extraction
 PATCH  /api/v1/captures/{id}/review  Submit review decisions
 POST   /api/v1/captures/{id}/trash   Move capture to trash
 POST   /api/v1/captures/{id}/restore Restore capture from trash
+POST   /api/v1/captures/{id}/reopen  Push approved/rejected back to review
 DELETE /api/v1/captures/{id}         Permanently delete a trashed capture
 GET    /api/v1/captures/trash        List trashed captures
 POST   /api/v1/captures/trash/delete-all  Empty trash (permanently delete all)

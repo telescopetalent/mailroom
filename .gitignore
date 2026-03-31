@@ -45,3 +45,4 @@ cdk.out/
 # Misc
 *.log
 tmp/
+backend/uploads/
