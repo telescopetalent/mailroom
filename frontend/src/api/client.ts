@@ -41,3 +41,28 @@ export async function api<T = unknown>(
 
   return res.json();
 }
+
+export async function apiUpload<T = unknown>(
+  path: string,
+  formData: FormData
+): Promise<T> {
+  const headers: Record<string, string> = {};
+
+  if (apiKey) {
+    headers["Authorization"] = `Bearer ${apiKey}`;
+  }
+
+  // Don't set Content-Type — browser sets multipart boundary automatically
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || `API error: ${res.status}`);
+  }
+
+  return res.json();
+}

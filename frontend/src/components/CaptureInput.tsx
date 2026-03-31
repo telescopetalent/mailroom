@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { api } from "../api/client";
+import { useState, useRef, useCallback } from "react";
+import { api, apiUpload } from "../api/client";
 
 interface CaptureInputProps {
   onCaptureCreated: () => void;
@@ -49,6 +49,36 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // File upload state
+  const [files, setFiles] = useState<File[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const ACCEPTED_TYPES = [
+    "image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif",
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ];
+
+  const addFiles = useCallback((newFiles: FileList | File[]) => {
+    const valid = Array.from(newFiles).filter((f) => {
+      if (!ACCEPTED_TYPES.includes(f.type)) {
+        setError(`File type not supported: ${f.name}`);
+        return false;
+      }
+      if (f.size > 10 * 1024 * 1024) {
+        setError(`File too large (max 10MB): ${f.name}`);
+        return false;
+      }
+      return true;
+    });
+    setFiles((prev) => [...prev, ...valid].slice(0, 5));
+  }, []);
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   // Manual form state
   const [summary, setSummary] = useState("");
   const [tasks, setTasks] = useState<ManualTask[]>([emptyTask()]);
@@ -67,15 +97,31 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
   };
 
   const handleSubmitAI = async () => {
-    if (!text.trim()) return;
+    if (!text.trim() && files.length === 0) return;
     setLoading(true);
     setError("");
     try {
-      await api("/captures", {
-        method: "POST",
-        body: JSON.stringify({ source: "web", content_text: text, mode: "ai" }),
-      });
+      if (files.length > 0) {
+        // Use FormData upload for files
+        const formData = new FormData();
+        formData.append("metadata", JSON.stringify({
+          source: "web",
+          content_text: text || undefined,
+          mode: "ai",
+        }));
+        for (const f of files) {
+          formData.append("files", f);
+        }
+        await apiUpload("/captures/upload", formData);
+      } else {
+        // Text-only — use existing JSON endpoint
+        await api("/captures", {
+          method: "POST",
+          body: JSON.stringify({ source: "web", content_text: text, mode: "ai" }),
+        });
+      }
       setText("");
+      setFiles([]);
       onCaptureCreated();
     } catch (e: any) {
       setError(e.message);
@@ -191,26 +237,115 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
 
       {mode === "ai" ? (
         <>
-          <textarea
-            placeholder="Paste meeting notes, emails, messages, or any text with action items..."
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={6}
-            style={{
-              width: "100%",
-              padding: "0.75rem",
-              fontFamily: "inherit",
-              fontSize: "0.95rem",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-              boxSizing: "border-box",
-              resize: "vertical",
+          <div
+            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsDragOver(false);
+              if (e.dataTransfer.files.length > 0) addFiles(e.dataTransfer.files);
             }}
+            style={{
+              border: isDragOver ? "2px dashed #3b82f6" : "1px solid #ccc",
+              borderRadius: "4px",
+              background: isDragOver ? "#eff6ff" : "white",
+              transition: "all 0.15s",
+            }}
+          >
+            <textarea
+              placeholder="Paste text, or drag and drop images, PDFs, or documents..."
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onPaste={(e) => {
+                const items = e.clipboardData.items;
+                for (let i = 0; i < items.length; i++) {
+                  if (items[i].type.startsWith("image/")) {
+                    const file = items[i].getAsFile();
+                    if (file) addFiles([file]);
+                  }
+                }
+              }}
+              rows={6}
+              style={{
+                width: "100%",
+                padding: "0.75rem",
+                fontFamily: "inherit",
+                fontSize: "0.95rem",
+                border: "none",
+                outline: "none",
+                boxSizing: "border-box",
+                resize: "vertical",
+                background: "transparent",
+              }}
+            />
+
+            {files.length === 0 && (
+              <div style={{ padding: "0 0.75rem 0.5rem", color: "#aaa", fontSize: "0.8rem" }}>
+                Drop images, PDFs, or DOCX files here
+                <span
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{ color: "#3b82f6", cursor: "pointer", marginLeft: "0.5rem" }}
+                >
+                  or browse
+                </span>
+              </div>
+            )}
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,.pdf,.docx"
+            style={{ display: "none" }}
+            onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }}
           />
+
+          {/* File previews */}
+          {files.length > 0 && (
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.5rem" }}>
+              {files.map((f, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                    padding: "0.3rem 0.6rem",
+                    background: "#f3f4f6",
+                    borderRadius: "4px",
+                    fontSize: "0.8rem",
+                    border: "1px solid #e5e7eb",
+                  }}
+                >
+                  {f.type.startsWith("image/") ? (
+                    <img
+                      src={URL.createObjectURL(f)}
+                      alt={f.name}
+                      style={{ width: 24, height: 24, objectFit: "cover", borderRadius: "2px" }}
+                    />
+                  ) : (
+                    <span style={{ fontSize: "1rem" }}>{f.type.includes("pdf") ? "\u{1F4C4}" : "\u{1F4DD}"}</span>
+                  )}
+                  <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {f.name}
+                  </span>
+                  <span style={{ color: "#999" }}>({(f.size / 1024).toFixed(0)}KB)</span>
+                  <button
+                    onClick={() => removeFile(i)}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "#999", fontSize: "0.9rem", padding: 0 }}
+                  >
+                    x
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {error && <p style={{ color: "red", margin: "0.5rem 0" }}>{error}</p>}
           <button
             onClick={handleSubmitAI}
-            disabled={loading || !text.trim()}
+            disabled={loading || (!text.trim() && files.length === 0)}
             style={{ marginTop: "0.5rem", padding: "0.5rem 1.5rem", cursor: loading ? "wait" : "pointer" }}
           >
             {loading ? "Processing..." : "Send to Mailroom"}

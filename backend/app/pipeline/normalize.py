@@ -2,13 +2,46 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
+from io import BytesIO
 
 from sqlalchemy.orm import Session
 
 from app.db.models import AttachmentRow, CaptureRow
 from app.pipeline.classify import ClassifyResult
 from app.pipeline.ingest import IngestResult
+from app.services.storage import get_storage
+
+logger = logging.getLogger("mailroom.pipeline.normalize")
+
+
+def _extract_pdf_text(data: bytes) -> str:
+    """Extract text from a PDF file."""
+    try:
+        from PyPDF2 import PdfReader
+        reader = PdfReader(BytesIO(data))
+        pages = []
+        for page in reader.pages:
+            text = page.extract_text()
+            if text:
+                pages.append(text)
+        return "\n\n".join(pages)
+    except Exception:
+        logger.exception("Failed to extract text from PDF")
+        return ""
+
+
+def _extract_docx_text(data: bytes) -> str:
+    """Extract text from a DOCX file."""
+    try:
+        from docx import Document
+        doc = Document(BytesIO(data))
+        paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+        return "\n\n".join(paragraphs)
+    except Exception:
+        logger.exception("Failed to extract text from DOCX")
+        return ""
 
 
 def normalize(
@@ -20,6 +53,7 @@ def normalize(
 
     Combines the raw input and classification into a normalized record.
     Also creates AttachmentRows for any uploaded files.
+    Extracts text from PDF/DOCX files and flags images for vision processing.
     """
     # Build normalized text from available content
     parts = []
@@ -28,14 +62,49 @@ def normalize(
     if ingest_result.raw_url:
         parts.append(f"[URL: {ingest_result.raw_url}]")
 
-    normalized_text = "\n\n".join(parts) if parts else None
-
     # Build raw_content for preservation
     raw_content = {}
     if ingest_result.raw_text:
         raw_content["text"] = ingest_result.raw_text
     if ingest_result.raw_url:
         raw_content["url"] = ingest_result.raw_url
+
+    # Process files: extract text from documents, flag images for vision
+    image_keys = []
+    storage = get_storage()
+
+    for i, key in enumerate(ingest_result.file_keys):
+        meta = ingest_result.file_metas[i] if i < len(ingest_result.file_metas) else {}
+        ct = meta.get("content_type", "")
+        filename = meta.get("filename", f"file_{i}")
+
+        if ct == "application/pdf":
+            try:
+                file_data = storage.download(key)
+                text = _extract_pdf_text(file_data)
+                if text:
+                    parts.append(f"[Extracted from: {filename}]\n{text}")
+                    logger.info("Extracted %d chars from PDF %s", len(text), filename)
+            except Exception:
+                logger.exception("Failed to download/extract PDF %s", key)
+
+        elif ct == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            try:
+                file_data = storage.download(key)
+                text = _extract_docx_text(file_data)
+                if text:
+                    parts.append(f"[Extracted from: {filename}]\n{text}")
+                    logger.info("Extracted %d chars from DOCX %s", len(text), filename)
+            except Exception:
+                logger.exception("Failed to download/extract DOCX %s", key)
+
+        elif ct.startswith("image/"):
+            image_keys.append(key)
+
+    if image_keys:
+        raw_content["image_keys"] = image_keys
+
+    normalized_text = "\n\n".join(parts) if parts else None
 
     now = datetime.utcnow()
 

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import math
+import uuid as uuid_mod
 from datetime import datetime
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -24,6 +26,7 @@ from app.models.api_schemas import (
 from app.models.extraction import Extraction
 from app.pipeline.orchestrator import run_pipeline
 from app.services.model_provider import get_model_provider
+from app.services.storage import get_storage
 
 router = APIRouter(prefix="/captures", tags=["captures"])
 
@@ -134,6 +137,89 @@ def create_capture(
 
     attachment_count = db.query(AttachmentRow).filter(AttachmentRow.capture_id == capture.id).count()
 
+    return _capture_to_response(capture, extraction, attachment_count)
+
+
+ALLOWED_FILE_TYPES = {
+    "image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif",
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_FILES = 5
+
+
+@router.post("/upload", response_model=None, status_code=status.HTTP_201_CREATED)
+def create_capture_with_files(
+    metadata: str = Form(...),
+    files: List[UploadFile] = File(default=[]),
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Create a capture with file uploads (images, PDFs, DOCX).
+
+    metadata: JSON string with {source, content_text, mode}
+    files: uploaded files (images, PDFs, DOCX)
+    """
+    try:
+        meta = json.loads(metadata)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid metadata JSON")
+
+    if len(files) > MAX_FILES:
+        raise HTTPException(status_code=400, detail=f"Maximum {MAX_FILES} files allowed")
+
+    storage = get_storage()
+    file_keys = []
+    file_metas = []
+
+    for f in files:
+        content_type = f.content_type or "application/octet-stream"
+        if content_type not in ALLOWED_FILE_TYPES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File type '{content_type}' not supported. Allowed: images, PDF, DOCX",
+            )
+
+        file_data = f.file.read()
+        if len(file_data) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=400, detail=f"File '{f.filename}' exceeds 10MB limit")
+
+        key = f"{current_user['workspace_id']}/{uuid_mod.uuid4()}/{f.filename}"
+        from io import BytesIO
+        storage.upload(key, BytesIO(file_data), content_type)
+
+        file_keys.append(key)
+        file_metas.append({
+            "filename": f.filename,
+            "content_type": content_type,
+            "size_bytes": len(file_data),
+        })
+
+    source = meta.get("source", "web")
+    content_text = meta.get("content_text")
+    content_url = meta.get("content_url")
+
+    provider = get_model_provider()
+
+    capture, extraction = run_pipeline(
+        user_id=current_user["user_id"],
+        workspace_id=current_user["workspace_id"],
+        source=source,
+        provider=provider,
+        db=db,
+        content_text=content_text,
+        content_url=content_url,
+        source_ref=None,
+        file_keys=file_keys if file_keys else None,
+        file_metas=file_metas if file_metas else None,
+    )
+
+    db.commit()
+    db.refresh(capture)
+    db.refresh(extraction)
+
+    attachment_count = db.query(AttachmentRow).filter(AttachmentRow.capture_id == capture.id).count()
     return _capture_to_response(capture, extraction, attachment_count)
 
 

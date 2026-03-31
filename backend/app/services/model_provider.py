@@ -42,13 +42,42 @@ Content to analyze:
 
 Return the JSON object:"""
 
+VISION_EXTRACTION_PROMPT = """You are an action extraction engine. Analyze the image(s) provided — they may be screenshots of emails, Slack messages, documents, social media posts, meeting notes, or any other content.
+
+Read and understand everything visible in the image(s), then extract structured information.
+
+Return a JSON object with these fields:
+- "summary": A brief 1-2 sentence summary of what the image contains
+- "next_steps": Array of strings — identified next actions
+- "tasks": Array of objects with (title, description, owner, due_date, priority)
+  - owner: only include if explicitly mentioned
+  - due_date: only include if explicitly mentioned (ISO format YYYY-MM-DD)
+  - priority: "high", "medium", "low", or "none"
+- "owners": Array of strings — all people/roles mentioned as responsible
+- "due_dates": Array of objects with (description, date, source_text)
+- "blockers": Array of strings — identified blockers or dependencies
+- "follow_ups": Array of objects with (description, owner, due_date)
+- "priority": Overall priority: "high", "medium", "low", or "none"
+- "source_references": Array of objects with (source, url, description)
+
+Rules:
+- Only extract what is explicitly visible in the image(s)
+- Do NOT invent owners, dates, or tasks that aren't shown
+- If a field has no relevant data, use an empty array or null
+- Return valid JSON only, no markdown formatting
+{additional_context}
+Return the JSON object:"""
+
 
 class ModelProvider(ABC):
     """Abstract interface for LLM-based extraction."""
 
     @abstractmethod
-    def extract(self, text: str) -> dict[str, Any]:
-        """Run structured extraction on text. Returns parsed JSON dict."""
+    def extract(self, text: str, image_data: list[dict[str, str]] | None = None) -> dict[str, Any]:
+        """Run structured extraction on text and/or images.
+
+        image_data: optional list of {"data": base64_str, "media_type": "image/png"}
+        """
         ...
 
     @property
@@ -63,7 +92,7 @@ class ModelProvider(ABC):
 
 
 class AnthropicProvider(ModelProvider):
-    """Anthropic Claude provider for structured extraction."""
+    """Anthropic Claude provider for structured extraction with vision support."""
 
     def __init__(self):
         import anthropic
@@ -79,7 +108,12 @@ class AnthropicProvider(ModelProvider):
     def model_id(self) -> str:
         return self._model_id
 
-    def extract(self, text: str) -> dict[str, Any]:
+    def extract(self, text: str, image_data: list[dict[str, str]] | None = None) -> dict[str, Any]:
+        if image_data:
+            return self._extract_with_vision(text, image_data)
+        return self._extract_text_only(text)
+
+    def _extract_text_only(self, text: str) -> dict[str, Any]:
         prompt = EXTRACTION_PROMPT.format(content=text)
 
         response = self._client.messages.create(
@@ -88,17 +122,70 @@ class AnthropicProvider(ModelProvider):
             messages=[{"role": "user", "content": prompt}],
         )
 
+        return self._parse_response(response)
+
+    def _extract_with_vision(self, text: str, image_data: list[dict[str, str]]) -> dict[str, Any]:
+        # Build multimodal content blocks
+        content = []
+
+        for img in image_data:
+            content.append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": img["media_type"],
+                    "data": img["data"],
+                },
+            })
+
+        additional = ""
+        if text:
+            additional = f"\nAdditional context provided with the image(s):\n---\n{text}\n---\n"
+
+        prompt = VISION_EXTRACTION_PROMPT.format(additional_context=additional)
+        content.append({"type": "text", "text": prompt})
+
+        response = self._client.messages.create(
+            model=self._model_id,
+            max_tokens=2048,
+            messages=[{"role": "user", "content": content}],
+        )
+
+        return self._parse_response(response)
+
+    def _parse_response(self, response: Any) -> dict[str, Any]:
         raw_text = response.content[0].text
         logger.debug("Anthropic response: %s", raw_text)
 
-        # Parse JSON from response (handle potential markdown wrapping)
         text_clean = raw_text.strip()
         if text_clean.startswith("```"):
-            # Strip markdown code block
             lines = text_clean.split("\n")
             text_clean = "\n".join(lines[1:-1])
 
-        return json.loads(text_clean)
+        # Try to find JSON in the response
+        try:
+            return json.loads(text_clean)
+        except json.JSONDecodeError:
+            # Try to extract JSON from within the text
+            start = text_clean.find("{")
+            end = text_clean.rfind("}") + 1
+            if start >= 0 and end > start:
+                try:
+                    return json.loads(text_clean[start:end])
+                except json.JSONDecodeError:
+                    pass
+            logger.warning("Could not parse JSON from response: %s", text_clean[:200])
+            return {
+                "summary": text_clean[:200] if text_clean else "Could not extract structured data",
+                "next_steps": [],
+                "tasks": [],
+                "owners": [],
+                "due_dates": [],
+                "blockers": [],
+                "follow_ups": [],
+                "priority": "none",
+                "source_references": [],
+            }
 
 
 class StubProvider(ModelProvider):
@@ -112,9 +199,12 @@ class StubProvider(ModelProvider):
     def model_id(self) -> str:
         return "stub-v1"
 
-    def extract(self, text: str) -> dict[str, Any]:
+    def extract(self, text: str, image_data: list[dict[str, str]] | None = None) -> dict[str, Any]:
+        desc = f"Captured content ({len(text)} chars)"
+        if image_data:
+            desc += f" + {len(image_data)} image(s)"
         return {
-            "summary": f"Captured content ({len(text)} chars)",
+            "summary": desc,
             "next_steps": [],
             "tasks": [],
             "owners": [],
