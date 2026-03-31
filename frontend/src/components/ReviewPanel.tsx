@@ -161,7 +161,7 @@ export default function ReviewPanel({ captureId, extraction, onReviewComplete }:
         </div>
       )}
 
-      {hasItems && (
+      {hasItems ? (
         <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
           <button onClick={approveAll} style={{ padding: "0.5rem 1rem" }}>
             Approve All
@@ -172,6 +172,42 @@ export default function ReviewPanel({ captureId, extraction, onReviewComplete }:
             style={{ padding: "0.5rem 1rem", cursor: submitting ? "wait" : "pointer" }}
           >
             {submitting ? "Submitting..." : "Submit Review"}
+          </button>
+        </div>
+      ) : (
+        <div style={{ marginTop: "1rem" }}>
+          <p style={{ color: "#888", fontSize: "0.85rem", marginBottom: "0.5rem" }}>
+            No actionable items extracted. You can mark this capture as reviewed.
+          </p>
+          <button
+            onClick={async () => {
+              setSubmitting(true);
+              setError("");
+              try {
+                await api(`/captures/${captureId}/review`, {
+                  method: "PATCH",
+                  body: JSON.stringify({
+                    decisions: [{ item_type: "summary", item_index: 0, action: "approve" }],
+                  }),
+                });
+                onReviewComplete();
+              } catch (e: any) {
+                setError(e.message);
+              } finally {
+                setSubmitting(false);
+              }
+            }}
+            disabled={submitting}
+            style={{
+              padding: "0.5rem 1rem",
+              background: "#22c55e",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: submitting ? "wait" : "pointer",
+            }}
+          >
+            {submitting ? "Marking..." : "Mark as Reviewed"}
           </button>
         </div>
       )}

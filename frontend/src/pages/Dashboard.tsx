@@ -7,6 +7,37 @@ async function trashCapture(id: string): Promise<void> {
   await api(`/captures/${id}/trash`, { method: "POST" });
 }
 
+async function quickApproveAll(id: string): Promise<void> {
+  // Fetch full capture to get extraction items
+  const capture = await api<{
+    extraction: {
+      tasks: any[];
+      next_steps: string[];
+      follow_ups: any[];
+    } | null;
+  }>(`/captures/${id}`);
+
+  if (!capture.extraction) return;
+
+  const decisions: { item_type: string; item_index: number; action: string }[] = [];
+  capture.extraction.tasks.forEach((_: any, i: number) => decisions.push({ item_type: "task", item_index: i, action: "approve" }));
+  capture.extraction.next_steps.forEach((_: any, i: number) => decisions.push({ item_type: "next_step", item_index: i, action: "approve" }));
+  capture.extraction.follow_ups.forEach((_: any, i: number) => decisions.push({ item_type: "follow_up", item_index: i, action: "approve" }));
+
+  if (decisions.length === 0) {
+    // No items to approve — just mark as approved with a dummy decision
+    await api(`/captures/${id}/review`, {
+      method: "PATCH",
+      body: JSON.stringify({ decisions: [{ item_type: "summary", item_index: 0, action: "approve" }] }),
+    });
+  } else {
+    await api(`/captures/${id}/review`, {
+      method: "PATCH",
+      body: JSON.stringify({ decisions }),
+    });
+  }
+}
+
 interface CaptureItem {
   id: string;
   source: string;
@@ -130,6 +161,31 @@ export default function Dashboard() {
               {cap.source} | {cap.content_type} | {new Date(cap.captured_at).toLocaleString()}
             </div>
           </Link>
+          {cap.status === "review" && (
+            <button
+              onClick={async (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                try {
+                  await quickApproveAll(cap.id);
+                  loadCaptures();
+                } catch {}
+              }}
+              title="Approve all items"
+              style={{
+                padding: "0.3rem 0.5rem",
+                background: "#22c55e",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "0.8rem",
+                flexShrink: 0,
+              }}
+            >
+              Approve
+            </button>
+          )}
           <button
             onClick={async (e) => {
               e.stopPropagation();
