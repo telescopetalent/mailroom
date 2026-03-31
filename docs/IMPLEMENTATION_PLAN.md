@@ -110,17 +110,19 @@
 
 **Epic 4.3: Capture pipeline — Normalize**
 - [x] Text normalization
-- [ ] OCR for images/screenshots (deferred to Phase 6)
-- [ ] PDF text extraction (deferred to Phase 6)
+- [x] Image vision via Claude (screenshots of emails, Slack, tweets, docs)
+- [x] PDF text extraction (PyPDF2)
+- [x] DOCX text extraction (python-docx)
 - [ ] URL content fetching (deferred to Phase 6)
 - [x] Create canonical Capture record in DB
 
 **Epic 4.4: Capture pipeline — Extract**
 - [x] Model provider abstraction (interface)
-- [x] Anthropic provider implementation
-- [x] Extraction prompt engineering
+- [x] Anthropic provider implementation (text + vision)
+- [x] Extraction prompt engineering (text and vision prompts)
 - [x] Structured output parsing (summary, tasks, owners, etc.)
 - [x] Extraction record saved to DB
+- [x] Multimodal extraction: images sent as base64 content blocks to Claude Vision
 
 **Epic 4.5: Capture pipeline — Orchestrator**
 - [x] Pipeline orchestrator: ingest → classify → normalize → extract
@@ -135,12 +137,19 @@
 
 **Epic 4.7: Web app capture + review UI**
 - [x] Capture input component (text paste, file upload)
-- [x] Capture list/feed view
+- [x] AI/Manual capture mode toggle
+- [x] Drag-and-drop zone for images, PDFs, DOCX files
+- [x] Clipboard paste support for images
+- [x] File preview with thumbnails (images) and icons (PDF/DOCX)
+- [x] POST /captures/upload endpoint for multipart file uploads
+- [x] Capture list/feed view with trash buttons
 - [x] Capture detail view with extraction results
 - [x] Review interface (approve/edit/reject per item)
-- [x] Approved tasks list view
+- [x] Tasks page with open/completed sections
+- [x] Trash system with configurable retention
+- [x] Settings page (trash retention, connected surfaces)
 
-**Deliverable:** A user can paste text or upload a file in the web app, see AI-extracted actions, review and approve them, and view saved tasks — all with source traceability.
+**Deliverable:** A user can paste text, drag images/documents, or use manual entry in the web app. AI extracts actions (including from screenshots via vision). Users review, approve, and manage tasks — all with source traceability.
 
 ---
 

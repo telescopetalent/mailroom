@@ -89,10 +89,14 @@ Stage 2: CLASSIFY
 Stage 3: NORMALIZE
   Input:  IngestResult + ClassifyResult
   Output: Capture (canonical capture object)
+  Note:   Extracts text from PDFs (PyPDF2) and DOCX (python-docx).
+          Flags images in raw_content["image_keys"] for vision.
 
 Stage 4: EXTRACT
-  Input:  Capture
+  Input:  Capture (text + optional images)
   Output: Extraction (summary, tasks, owners, due_dates, etc.)
+  Note:   For images, loads from storage, base64-encodes, sends to
+          Claude Vision as multimodal content blocks.
 
 Stage 5: REVIEW (user-facing)
   Input:  Capture + Extraction
@@ -126,8 +130,13 @@ This keeps surface-specific logic isolated and makes adding new surfaces straigh
 class ModelProvider:
     """Abstract interface for LLM calls."""
 
-    async def extract(self, text: str, prompt: str) -> ExtractionResult:
-        """Run structured extraction on normalized text."""
+    def extract(self, text: str, image_data: list[dict] | None = None) -> dict:
+        """Run structured extraction on text and/or images.
+
+        image_data: optional list of {"data": base64_str, "media_type": "image/png"}
+        For images, Claude Vision analyzes screenshots of emails, Slack threads,
+        tweets, documents, etc. and extracts tasks/actions.
+        """
         ...
 ```
 
@@ -252,7 +261,8 @@ Source references preserve traceability:
 ### 4.1 Core Endpoints
 
 ```
-POST   /api/v1/captures              Create a new capture (web app, API clients)
+POST   /api/v1/captures              Create a text capture (JSON body)
+POST   /api/v1/captures/upload       Create a capture with files (multipart/form-data)
 GET    /api/v1/captures              List captures for workspace (excludes trashed)
 GET    /api/v1/captures/{id}         Get capture with extraction
 PATCH  /api/v1/captures/{id}/review  Submit review decisions

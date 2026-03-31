@@ -31,12 +31,15 @@ Mailroom is a routing layer first and an AI action engine second.
 ## What Works Today
 
 ### Web App (localhost)
-- Paste text or use the manual form to create captures
-- AI extracts tasks, owners, due dates, blockers, follow-ups, priority
+- **Text capture** — paste text, AI extracts tasks/actions
+- **Image/screenshot capture** — drag or paste a screenshot (email, Slack thread, tweet, document), Claude Vision reads it and extracts actions
+- **Document capture** — drag a PDF or DOCX, text is extracted server-side then analyzed by AI
+- **Manual capture** — structured form for entering tasks, next steps, blockers, follow-ups directly
+- **AI/Manual toggle** — switch between AI extraction and manual entry
 - Review and approve/reject extracted items
-- Approved items become tasks with source traceability
-- Trash system with configurable retention
 - Tasks page with open/completed sections
+- Trash system with configurable retention
+- Settings page for trash retention and connected surfaces
 
 ### Email Capture (webhook, stubbed)
 - Register sender email addresses as surface connections
@@ -186,7 +189,7 @@ curl -X POST http://localhost:8000/api/v1/webhooks/slack \
 
 ### Anthropic API (AI Extraction)
 
-**What's built:** Full model provider abstraction with Anthropic Claude integration. A stub provider works without an API key.
+**What's built:** Full model provider abstraction with Anthropic Claude integration, including Vision support for image/screenshot analysis. A stub provider works without an API key.
 
 **What's needed:**
 
@@ -195,7 +198,7 @@ curl -X POST http://localhost:8000/api/v1/webhooks/slack \
 3. Add to `backend/.env`: `ANTHROPIC_API_KEY=sk-ant-...`
 4. Restart the backend
 
-Without an API key, captures use the stub provider (returns a placeholder summary, no extracted tasks).
+Without an API key, captures use the stub provider (returns a placeholder summary, no extracted tasks). Vision (image analysis) requires the API key.
 
 ---
 
@@ -207,7 +210,7 @@ Without an API key, captures use the stub provider (returns a placeholder summar
 - Input validation hardening and rate limiting
 - Structured logging and observability (Sentry, metrics)
 - Edge cases: large files, malformed input, duplicates
-- OCR for images/screenshots, PDF text extraction, URL fetching
+- URL content fetching for link-based captures
 
 ### Phase 7 — Native Surfaces
 - **iPhone app** — SwiftUI capture-first app with camera, paste, voice input
