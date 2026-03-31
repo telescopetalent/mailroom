@@ -8,8 +8,8 @@
 | 2 | System design | Architecture, data models, API contracts | Done |
 | 3 | Core platform foundation | Backend skeleton, DB, auth, basic frontend | Done |
 | 4 | Core engine MVP | Capture pipeline + extraction + review workflow | Done |
-| 5 | Core external surfaces | Email and Slack connectors | Next |
-| 6 | Quality, trust, reliability | Testing, monitoring, error handling, edge cases | Planned |
+| 5 | Core external surfaces | Email and Slack connectors | Done |
+| 6 | Quality, trust, reliability | Testing, monitoring, error handling, edge cases | Next |
 | 7 | Native surfaces | iPhone app, iOS share extension, Apple Notes, Chrome extension | Planned |
 | 8 | Ambient capture | Desktop drag-and-drop bin | Planned |
 | 9 | Messaging expansion | SMS, Telegram, Discord, WhatsApp | Future |
@@ -149,20 +149,25 @@
 ### Milestone: Users can capture from email and Slack
 
 **Epic 5.1: Email connector**
-- [ ] Inbound email receiving (AWS SES or webhook-based provider)
-- [ ] Email parsing (body, subject, attachments, sender)
-- [ ] Email connector: parse into IngestRequest
-- [ ] Webhook endpoint: POST /api/v1/webhooks/email
-- [ ] Email-to-user routing (match sender to workspace)
-- [ ] Reply-based review (optional: approve via email reply)
+- [x] Inbound email receiving (webhook endpoint, AWS SES stubbed)
+- [x] Email parsing (body, subject, sender, message_id)
+- [x] Email connector: parse into pipeline kwargs
+- [x] Webhook endpoint: POST /api/v1/webhooks/email
+- [x] Email-to-user routing (surface_connections lookup)
+- [ ] Reply-based review (deferred — approve via email reply)
 
 **Epic 5.2: Slack connector**
-- [ ] Slack app creation (bot token, event subscriptions)
-- [ ] Slack Events API webhook
-- [ ] Message action / slash command to capture
-- [ ] Slack connector: parse message into IngestRequest
-- [ ] Webhook endpoint: POST /api/v1/webhooks/slack
-- [ ] Slack thread-based review (optional: show extraction in thread)
+- [x] Slack slash command support (/mailroom)
+- [x] Slack URL verification challenge handling
+- [x] Slack connector: parse slash command into pipeline kwargs
+- [x] Webhook endpoint: POST /api/v1/webhooks/slack
+- [ ] Slack thread-based review (deferred — show extraction in thread)
+
+**Epic 5.3: Surface connections**
+- [x] surface_connections table (maps external IDs to workspaces)
+- [x] CRUD API for surface connections
+- [x] Connected Surfaces UI in Settings page
+- [x] Alembic migration 004
 
 **Deliverable:** Users can forward an email or use a Slack command to capture content into Mailroom.
 
