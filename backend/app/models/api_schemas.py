@@ -169,6 +169,44 @@ class UpdateTaskRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Surface connections
+# ---------------------------------------------------------------------------
+
+
+class CreateSurfaceConnectionRequest(BaseModel):
+    """Request body for POST /api/v1/surface-connections."""
+
+    surface: str  # "email" or "slack"
+    external_id: str  # email address or Slack team_id
+    config: Optional[dict[str, Any]] = None
+
+
+class UpdateSurfaceConnectionRequest(BaseModel):
+    """Request body for PATCH /api/v1/surface-connections/{id}."""
+
+    is_active: Optional[bool] = None
+    config: Optional[dict[str, Any]] = None
+
+
+class SurfaceConnectionResponse(BaseModel):
+    """Response for a single surface connection."""
+
+    id: UUID
+    workspace_id: UUID
+    surface: str
+    external_id: str
+    config: Optional[dict[str, Any]] = None
+    is_active: bool
+    created_at: datetime
+
+
+class SurfaceConnectionListResponse(BaseModel):
+    """List of surface connections."""
+
+    items: list[SurfaceConnectionResponse]
+
+
+# ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------
 

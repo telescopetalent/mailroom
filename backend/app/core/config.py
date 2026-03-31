@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     gemini_api_key: str = ""
 
+    # Webhook secrets (optional — skip verification if empty)
+    webhook_email_secret: str = ""
+    slack_signing_secret: str = ""
+
     model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8"}
 
 

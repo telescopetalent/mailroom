@@ -41,6 +41,8 @@ def create_app() -> FastAPI:
     from app.api.captures import router as captures_router
     from app.api.reviews import router as reviews_router
     from app.api.tasks import router as tasks_router
+    from app.api.webhooks import router as webhooks_router
+    from app.api.surface_connections import router as surface_connections_router
 
     app.include_router(health_router, prefix="/api/v1")
     app.include_router(auth_router, prefix="/api/v1")
@@ -48,6 +50,8 @@ def create_app() -> FastAPI:
     app.include_router(captures_router, prefix="/api/v1")
     app.include_router(reviews_router, prefix="/api/v1")
     app.include_router(tasks_router, prefix="/api/v1")
+    app.include_router(webhooks_router, prefix="/api/v1")
+    app.include_router(surface_connections_router, prefix="/api/v1")
 
     return app
 
