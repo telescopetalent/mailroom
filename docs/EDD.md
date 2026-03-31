@@ -155,6 +155,17 @@ workspace_members
   user_id         UUID FK → users
   role            TEXT
 
+surface_connections
+  id              UUID PK
+  workspace_id    UUID FK → workspaces
+  user_id         UUID FK → users
+  surface         TEXT ("email" | "slack")
+  external_id     TEXT (email address or Slack team_id)
+  config          JSONB
+  is_active       BOOLEAN (default true)
+  created_at      TIMESTAMP
+  UNIQUE(surface, external_id)
+
 captures
   id              UUID PK
   workspace_id    UUID FK → workspaces
@@ -251,12 +262,17 @@ DELETE /api/v1/captures/{id}         Permanently delete a trashed capture
 GET    /api/v1/captures/trash        List trashed captures
 POST   /api/v1/captures/trash/delete-all  Empty trash (permanently delete all)
 
-POST   /api/v1/webhooks/email        Inbound email webhook
-POST   /api/v1/webhooks/slack        Slack events webhook
+POST   /api/v1/webhooks/email        Inbound email webhook (unauthenticated, lookup-based)
+POST   /api/v1/webhooks/slack        Slack webhook (URL verification + slash commands)
 
-GET    /api/v1/tasks                 List approved tasks
+GET    /api/v1/tasks                 List approved tasks (filterable by ?status=open|completed)
 GET    /api/v1/tasks/{id}            Get task with source traceability
 PATCH  /api/v1/tasks/{id}            Update task status
+
+GET    /api/v1/surface-connections          List surface connections for workspace
+POST   /api/v1/surface-connections          Register email or Slack connection
+PATCH  /api/v1/surface-connections/{id}     Toggle active, update config
+DELETE /api/v1/surface-connections/{id}     Remove connection
 
 GET    /api/v1/workspaces/current           Get current workspace
 PATCH  /api/v1/workspaces/current/settings  Update workspace settings (trash retention)

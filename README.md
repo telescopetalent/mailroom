@@ -2,49 +2,252 @@
 
 A low-friction, multi-surface capture and routing platform.
 
-Mailroom meets users on the digital surface they're already using — email, Slack, iPhone, browser, screenshots, PDFs, copied text — and routes everything through a shared pipeline that normalizes input, extracts structured actions, and presents a review-first workflow.
+Mailroom meets users on the digital surface they're already using — email, Slack, web app, and more — and routes everything through a shared pipeline that normalizes input, extracts structured actions via AI, and presents a review-first workflow.
 
-## Core Idea
+**Core principle:** Users should not have to go into the app to use the app.
 
-**Users should not have to go into the app to use the app.**
+Mailroom is a routing layer first and an AI action engine second.
 
-Mailroom is a routing layer first and an AI action engine second. The web app is one surface, not the product.
+---
 
-## How It Works
+## Current Status
 
-1. **Capture** — Send content from any surface (paste, email, Slack, share extension, browser extension, drag-and-drop)
-2. **Route** — Identify user/workspace, classify source and content type
-3. **Normalize** — Convert input into a canonical capture object with source traceability
-4. **Extract** — AI extracts structured outputs: summary, tasks, owners, due dates, blockers, follow-ups, priority
-5. **Review** — User reviews and approves extracted actions before they're saved
-6. **Act** — Approved outputs saved as tasks with full source traceability
+**Phases 1–5 complete.** The platform has a working backend, frontend, AI extraction pipeline, and connectors for email and Slack (stubbed for local testing — ready to wire up to AWS SES and Slack API).
+
+| Phase | Status |
+|-------|--------|
+| 1. Product framing and planning | Done |
+| 2. System design | Done |
+| 3. Core platform foundation | Done |
+| 4. Core engine MVP | Done |
+| 5. Email and Slack connectors | Done |
+| 6. Quality, trust, reliability | Next |
+| 7. Native surfaces (iOS, Chrome extension) | Planned |
+| 8. Ambient capture (desktop drag-and-drop) | Planned |
+| 9. Messaging expansion (SMS, Telegram, etc.) | Future |
+
+---
+
+## What Works Today
+
+### Web App (localhost)
+- Paste text or use the manual form to create captures
+- AI extracts tasks, owners, due dates, blockers, follow-ups, priority
+- Review and approve/reject extracted items
+- Approved items become tasks with source traceability
+- Trash system with configurable retention
+- Tasks page with open/completed sections
+
+### Email Capture (webhook, stubbed)
+- Register sender email addresses as surface connections
+- POST JSON to the email webhook to simulate inbound email
+- Email content flows through the full AI extraction pipeline
+- Source metadata (sender, subject, message_id) preserved
+
+### Slack Capture (webhook, stubbed)
+- Register Slack team IDs as surface connections
+- Slash command `/mailroom <text>` triggers capture
+- URL verification challenge handling for Slack app setup
+- Source metadata (channel, team) preserved
+
+---
+
+## Getting Started
+
+### Prerequisites
+- Python 3.9+
+- PostgreSQL running locally
+- Node.js 18+
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/telescopetalent/mailroom.git
+cd mailroom
+
+# Backend
+cd backend
+pip install -r requirements.txt
+
+# Frontend
+cd ../frontend
+npm install
+```
+
+### 2. Set up the database
+
+```bash
+createdb mailroom_dev
+
+cd backend
+python3 -m alembic upgrade head
+```
+
+### 3. Configure environment
+
+Create `backend/.env`:
+
+```env
+DATABASE_URL=postgresql://localhost:5432/mailroom_dev
+ANTHROPIC_API_KEY=sk-ant-...   # Optional — stub provider works without this
+```
+
+### 4. Start the servers
+
+Terminal 1 — Backend:
+```bash
+cd backend
+python3 -m uvicorn app.main:app --reload
+```
+
+Terminal 2 — Frontend:
+```bash
+cd frontend
+npm run dev
+```
+
+### 5. Bootstrap your user
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/bootstrap \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","name":"Your Name","workspace_name":"My Workspace"}'
+```
+
+Save the `mr_...` API key from the response.
+
+### 6. Use the web app
+
+Open `http://localhost:5173`, paste your API key, and start capturing.
+
+---
+
+## Connecting External Surfaces
+
+### Email (AWS SES — not yet wired)
+
+**What's built:** The webhook endpoint, email connector, email parsing, and surface connection lookup are fully implemented. The endpoint accepts inbound email JSON and runs it through the AI pipeline.
+
+**What's needed to go live:**
+
+1. **AWS account** — Create an AWS account
+2. **Domain** — Register or verify a domain in AWS SES (e.g., `inbound.mailroom.dev`)
+3. **SES inbound rule** — Configure SES to receive email and forward to an SNS topic
+4. **SNS subscription** — Point the SNS topic at `https://your-domain.com/api/v1/webhooks/email`
+5. **Deploy backend** — The backend must be publicly accessible (not localhost)
+6. **SNS message format** — Update the email webhook to parse the SNS envelope (currently accepts a simple JSON stub)
+7. **Register sender** — In Settings > Connected Surfaces, add the email address that will forward to Mailroom
+
+**Test locally now:**
+```bash
+# Register a sender
+curl -X POST http://localhost:8000/api/v1/surface-connections \
+  -H "Authorization: Bearer mr_YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"surface":"email","external_id":"sender@example.com"}'
+
+# Simulate inbound email
+curl -X POST http://localhost:8000/api/v1/webhooks/email \
+  -H "Content-Type: application/json" \
+  -d '{"from":"sender@example.com","subject":"Meeting notes","body_text":"Ship v2 by Friday. John owns the deploy.","message_id":"<msg@example.com>"}'
+```
+
+### Slack (Slash Command — not yet wired)
+
+**What's built:** The webhook endpoint, Slack connector, slash command parsing, URL verification, and surface connection lookup are fully implemented.
+
+**What's needed to go live:**
+
+1. **Slack app** — Create a Slack app at [api.slack.com/apps](https://api.slack.com/apps)
+2. **Slash command** — Add a slash command `/mailroom` pointing to `https://your-domain.com/api/v1/webhooks/slack`
+3. **Signing secret** — Copy the Slack app's signing secret into `backend/.env` as `SLACK_SIGNING_SECRET`
+4. **Deploy backend** — Must be publicly accessible for Slack to reach
+5. **Install app** — Install the Slack app to your workspace
+6. **Register team** — In Settings > Connected Surfaces, add the Slack team ID (found in Slack workspace settings)
+
+**Test locally now:**
+```bash
+# Register a Slack workspace
+curl -X POST http://localhost:8000/api/v1/surface-connections \
+  -H "Authorization: Bearer mr_YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"surface":"slack","external_id":"T01ABCDEF"}'
+
+# Test URL verification (Slack sends this during app setup)
+curl -X POST http://localhost:8000/api/v1/webhooks/slack \
+  -H "Content-Type: application/json" \
+  -d '{"type":"url_verification","challenge":"test123"}'
+
+# Simulate slash command
+curl -X POST http://localhost:8000/api/v1/webhooks/slack \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "team_id=T01ABCDEF&channel_id=C01&channel_name=general&user_id=U01&text=Review budget by Thursday&command=/mailroom"
+```
+
+### Anthropic API (AI Extraction)
+
+**What's built:** Full model provider abstraction with Anthropic Claude integration. A stub provider works without an API key.
+
+**What's needed:**
+
+1. Sign up at [console.anthropic.com](https://console.anthropic.com)
+2. Create an API key
+3. Add to `backend/.env`: `ANTHROPIC_API_KEY=sk-ant-...`
+4. Restart the backend
+
+Without an API key, captures use the stub provider (returns a placeholder summary, no extracted tasks).
+
+---
+
+## What Remains to Build
+
+### Phase 6 — Quality, Trust, and Reliability (Next)
+- Unit and integration tests for pipeline, API, and connectors
+- Error handling and retry logic for pipeline failures
+- Input validation hardening and rate limiting
+- Structured logging and observability (Sentry, metrics)
+- Edge cases: large files, malformed input, duplicates
+- OCR for images/screenshots, PDF text extraction, URL fetching
+
+### Phase 7 — Native Surfaces
+- **iPhone app** — SwiftUI capture-first app with camera, paste, voice input
+- **iOS share extension** — Capture from any app via the share sheet
+- **Apple Notes share flow** — Share from Notes directly
+- **Chrome extension** — Popup, right-click context menu, screenshot, bookmark capture
+
+### Phase 8 — Ambient Capture
+- **Desktop app** — Menubar/dock drag-and-drop bin (Electron or Tauri)
+- Clipboard monitoring (opt-in)
+- Screenshot capture hotkey
+
+### Phase 9 — Messaging Expansion (Future)
+- SMS, Telegram, Discord, WhatsApp connectors
+- Each follows the same connector pattern as email/Slack
+
+### Infrastructure (Not Yet Started)
+- AWS deployment (ECS/Lambda, RDS, S3, CloudFront)
+- CI/CD pipeline
+- Production PostgreSQL (RDS)
+- Domain and SSL
+- Environment management (staging, production)
+
+---
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React + TypeScript |
-| Backend | Python (FastAPI) |
-| Cloud | AWS |
-| AI Models | Anthropic / Gemini (abstracted) |
+| Frontend | React + TypeScript (Vite) |
+| Backend | Python 3.9+ (FastAPI) |
+| Database | PostgreSQL + Alembic migrations |
+| AI Models | Anthropic Claude (abstracted — Gemini ready) |
+| Cloud | AWS (planned) |
 
-## Project Structure
+## API Documentation
 
-```
-mailroom/
-├── backend/        # Python API and pipeline
-├── frontend/       # React web app
-├── clients/        # Thin client surfaces (Chrome extension, iOS, desktop)
-├── infra/          # AWS infrastructure
-├── docs/           # PRD, EDD, implementation plan
-└── scripts/        # Dev tooling
-```
+With the backend running, visit `http://localhost:8000/docs` for interactive API docs (Swagger UI).
 
-## Getting Started
-
-> Project is in the planning phase. See `docs/` for product requirements, engineering design, and implementation plan.
-
-## Documentation
+## Project Documentation
 
 - [Product Requirements](docs/PRD.md)
 - [Engineering Design](docs/EDD.md)
