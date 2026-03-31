@@ -79,9 +79,28 @@ export default function CaptureDetail() {
       )}
 
       {capture.extraction && capture.status === "approved" && (
-        <div style={{ marginTop: "1.5rem", padding: "1rem", background: "#f0fdf4", borderRadius: "4px" }}>
-          <strong>Approved</strong> — items saved as tasks.{" "}
-          <Link to="/tasks">View tasks</Link>
+        <div style={{ marginTop: "1.5rem", padding: "1rem", background: "#f0fdf4", borderRadius: "4px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <strong>Approved</strong> — items saved as tasks.{" "}
+            <Link to="/tasks">View tasks</Link>
+          </div>
+          <button
+            onClick={async () => {
+              await api(`/captures/${capture.id}/reopen`, { method: "POST" });
+              load();
+            }}
+            style={{
+              padding: "0.3rem 0.7rem",
+              background: "transparent",
+              border: "1px solid #d1d5db",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontSize: "0.85rem",
+              color: "#666",
+            }}
+          >
+            Reopen for Review
+          </button>
         </div>
       )}
     </div>

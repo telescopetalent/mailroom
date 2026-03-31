@@ -421,6 +421,35 @@ def restore_capture(
     return _capture_to_response(capture, ext, att_count)
 
 
+@router.post("/{capture_id}/reopen", response_model=None)
+def reopen_capture(
+    capture_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Push an approved/rejected capture back to review status."""
+    capture = (
+        db.query(CaptureRow)
+        .filter(
+            CaptureRow.id == capture_id,
+            CaptureRow.workspace_id == current_user["workspace_id"],
+        )
+        .first()
+    )
+    if not capture:
+        raise HTTPException(status_code=404, detail="Capture not found")
+    if capture.status not in ("approved", "rejected"):
+        raise HTTPException(status_code=400, detail="Only approved or rejected captures can be reopened")
+
+    capture.status = "review"
+    db.commit()
+    db.refresh(capture)
+
+    ext = db.query(ExtractionRow).filter(ExtractionRow.capture_id == capture.id).first()
+    att_count = db.query(AttachmentRow).filter(AttachmentRow.capture_id == capture.id).count()
+    return _capture_to_response(capture, ext, att_count)
+
+
 @router.delete("/{capture_id}", status_code=status.HTTP_204_NO_CONTENT)
 def permanently_delete_capture(
     capture_id: UUID,

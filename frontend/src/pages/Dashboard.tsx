@@ -2,40 +2,16 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, getApiKey, setApiKey } from "../api/client";
 import CaptureInput from "../components/CaptureInput";
+import ReviewPanel from "../components/ReviewPanel";
 
-async function trashCapture(id: string): Promise<void> {
-  await api(`/captures/${id}/trash`, { method: "POST" });
-}
-
-async function quickApproveAll(id: string): Promise<void> {
-  // Fetch full capture to get extraction items
-  const capture = await api<{
-    extraction: {
-      tasks: any[];
-      next_steps: string[];
-      follow_ups: any[];
-    } | null;
-  }>(`/captures/${id}`);
-
-  if (!capture.extraction) return;
-
-  const decisions: { item_type: string; item_index: number; action: string }[] = [];
-  capture.extraction.tasks.forEach((_: any, i: number) => decisions.push({ item_type: "task", item_index: i, action: "approve" }));
-  capture.extraction.next_steps.forEach((_: any, i: number) => decisions.push({ item_type: "next_step", item_index: i, action: "approve" }));
-  capture.extraction.follow_ups.forEach((_: any, i: number) => decisions.push({ item_type: "follow_up", item_index: i, action: "approve" }));
-
-  if (decisions.length === 0) {
-    // No items to approve — just mark as approved with a dummy decision
-    await api(`/captures/${id}/review`, {
-      method: "PATCH",
-      body: JSON.stringify({ decisions: [{ item_type: "summary", item_index: 0, action: "approve" }] }),
-    });
-  } else {
-    await api(`/captures/${id}/review`, {
-      method: "PATCH",
-      body: JSON.stringify({ decisions }),
-    });
-  }
+interface Extraction {
+  id: string;
+  summary: string | null;
+  next_steps: string[];
+  tasks: { title: string; description?: string; owner?: string; due_date?: string; priority?: string }[];
+  blockers: string[];
+  follow_ups: { description: string; owner?: string; due_date?: string }[];
+  priority: string;
 }
 
 interface CaptureItem {
@@ -45,7 +21,7 @@ interface CaptureItem {
   status: string;
   captured_at: string;
   normalized_text: string | null;
-  extraction: { summary: string | null } | null;
+  extraction: Extraction | null;
 }
 
 interface CaptureList {
@@ -53,12 +29,22 @@ interface CaptureList {
   pagination: { total_count: number };
 }
 
+const btnStyle: React.CSSProperties = {
+  padding: "0.3rem 0.6rem",
+  borderRadius: "4px",
+  cursor: "pointer",
+  fontSize: "0.8rem",
+  flexShrink: 0,
+  border: "none",
+};
+
 export default function Dashboard() {
   const [connected, setConnected] = useState(!!getApiKey());
   const [keyInput, setKeyInput] = useState("");
   const [user, setUser] = useState<{ email: string; name: string } | null>(null);
   const [captures, setCaptures] = useState<CaptureItem[]>([]);
   const [error, setError] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const loadCaptures = () => {
     api<CaptureList>("/captures")
@@ -79,6 +65,16 @@ export default function Dashboard() {
         });
     }
   }, [connected]);
+
+  const trashCapture = async (id: string) => {
+    await api(`/captures/${id}/trash`, { method: "POST" });
+    loadCaptures();
+  };
+
+  const reopenCapture = async (id: string) => {
+    await api(`/captures/${id}/reopen`, { method: "POST" });
+    loadCaptures();
+  };
 
   if (!connected) {
     return (
@@ -124,27 +120,37 @@ export default function Dashboard() {
         <div
           key={cap.id}
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            padding: "0.75rem",
             marginBottom: "0.5rem",
             border: "1px solid #e2e2e2",
             borderRadius: "4px",
+            overflow: "hidden",
           }}
         >
-          <Link
-            to={`/captures/${cap.id}`}
+          {/* Card header */}
+          <div
             style={{
-              flex: 1,
-              textDecoration: "none",
-              color: "inherit",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              padding: "0.75rem",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
+            {/* Content - clickable link */}
+            <Link
+              to={`/captures/${cap.id}`}
+              style={{ flex: 1, textDecoration: "none", color: "inherit", minWidth: 0 }}
+            >
+              <div style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
                 <strong>{cap.extraction?.summary || cap.normalized_text?.slice(0, 80) || "Capture"}</strong>
               </div>
+              <div style={{ color: "#999", fontSize: "0.8rem", marginTop: "0.25rem" }}>
+                {cap.source} | {cap.content_type} | {new Date(cap.captured_at).toLocaleString()}
+              </div>
+            </Link>
+
+            {/* Action buttons — always aligned right */}
+            <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", flexShrink: 0 }}>
+              {/* Status badge */}
               <span
                 style={{
                   fontSize: "0.75rem",
@@ -156,56 +162,66 @@ export default function Dashboard() {
               >
                 {cap.status}
               </span>
+
+              {/* Review toggle for review captures */}
+              {cap.status === "review" && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpandedId(expandedId === cap.id ? null : cap.id);
+                  }}
+                  style={{ ...btnStyle, background: "#3b82f6", color: "white" }}
+                >
+                  Review
+                </button>
+              )}
+
+              {/* Reopen for approved captures */}
+              {cap.status === "approved" && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    reopenCapture(cap.id);
+                  }}
+                  style={{ ...btnStyle, background: "transparent", border: "1px solid #d1d5db", color: "#666" }}
+                >
+                  Reopen
+                </button>
+              )}
+
+              {/* Trash */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  trashCapture(cap.id);
+                }}
+                title="Move to trash"
+                style={{ ...btnStyle, background: "transparent", border: "1px solid #d1d5db", color: "#999" }}
+              >
+                Trash
+              </button>
             </div>
-            <div style={{ color: "#999", fontSize: "0.8rem", marginTop: "0.25rem" }}>
-              {cap.source} | {cap.content_type} | {new Date(cap.captured_at).toLocaleString()}
-            </div>
-          </Link>
-          {cap.status === "review" && (
-            <button
-              onClick={async (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                try {
-                  await quickApproveAll(cap.id);
-                  loadCaptures();
-                } catch {}
-              }}
-              title="Approve all items"
+          </div>
+
+          {/* Inline review panel — expanded */}
+          {expandedId === cap.id && cap.status === "review" && cap.extraction && (
+            <div
               style={{
-                padding: "0.3rem 0.5rem",
-                background: "#22c55e",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-                fontSize: "0.8rem",
-                flexShrink: 0,
+                borderTop: "1px solid #e2e2e2",
+                padding: "0.75rem",
+                background: "#fafafa",
               }}
             >
-              Approve
-            </button>
+              <ReviewPanel
+                captureId={cap.id}
+                extraction={cap.extraction}
+                onReviewComplete={() => {
+                  setExpandedId(null);
+                  loadCaptures();
+                }}
+              />
+            </div>
           )}
-          <button
-            onClick={async (e) => {
-              e.stopPropagation();
-              await trashCapture(cap.id);
-              loadCaptures();
-            }}
-            title="Move to trash"
-            style={{
-              padding: "0.3rem 0.5rem",
-              background: "transparent",
-              border: "1px solid #d1d5db",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontSize: "0.8rem",
-              color: "#999",
-              flexShrink: 0,
-            }}
-          >
-            Trash
-          </button>
         </div>
       ))}
     </div>
