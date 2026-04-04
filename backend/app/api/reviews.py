@@ -15,6 +15,25 @@ from app.core.database import get_db
 from app.db.models import ApprovedTaskRow, ApprovedWorkflowRow, CaptureRow, ExtractionRow
 from app.models.api_schemas import ReviewResponse, SubmitReviewRequest
 
+
+def _parse_due_date(value: str | None) -> datetime | None:
+    """Parse a due_date string into a datetime, or None if unparseable."""
+    if not value:
+        return None
+    # Try ISO format first (YYYY-MM-DD)
+    try:
+        return datetime.strptime(value, "%Y-%m-%d")
+    except (ValueError, TypeError):
+        pass
+    # Try other common formats
+    for fmt in ("%m/%d/%Y", "%d/%m/%Y", "%B %d, %Y", "%b %d, %Y"):
+        try:
+            return datetime.strptime(value, fmt)
+        except (ValueError, TypeError):
+            pass
+    # Unparseable (e.g. "Thursday", "next week") — drop it
+    return None
+
 router = APIRouter(prefix="/captures", tags=["reviews"])
 
 
@@ -75,7 +94,7 @@ def submit_review(
                 title=task_data.get("title", "Untitled"),
                 description=task_data.get("description"),
                 owner=task_data.get("owner"),
-                due_date=task_data.get("due_date"),
+                due_date=_parse_due_date(task_data.get("due_date")),
                 priority=task_data.get("priority", "none"),
                 source_ref=capture.source_ref or {},
                 approved_at=now,
@@ -121,7 +140,7 @@ def submit_review(
                 workspace_id=current_user["workspace_id"],
                 title=fu.get("description", "Follow-up"),
                 owner=fu.get("owner"),
-                due_date=fu.get("due_date"),
+                due_date=_parse_due_date(fu.get("due_date")),
                 priority="none",
                 source_ref=capture.source_ref or {},
                 approved_at=now,
@@ -171,7 +190,7 @@ def submit_review(
                     title=step.get("title", "Untitled step"),
                     description=step.get("description"),
                     owner=step.get("owner"),
-                    due_date=step.get("due_date"),
+                    due_date=_parse_due_date(step.get("due_date")),
                     priority=step.get("priority", "none"),
                     source_ref=capture.source_ref or {},
                     approved_at=now,
