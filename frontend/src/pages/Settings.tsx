@@ -151,7 +151,7 @@ export default function Settings() {
         <div style={{ marginTop: "1.5rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <button
             onClick={save}
-            disabled={saving || (settings && retentionDays === settings.trash_retention_days)}
+            disabled={saving || !!(settings && retentionDays === settings.trash_retention_days)}
             style={{
               padding: "0.5rem 1rem",
               background:

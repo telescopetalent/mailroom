@@ -6,6 +6,8 @@ import math
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+
+from app.core.exceptions import NotFoundError
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
@@ -94,7 +96,7 @@ def get_task(
         .first()
     )
     if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise NotFoundError("Task")
 
     capture = db.query(CaptureRow).filter(CaptureRow.id == task.capture_id).first()
     source = capture.source if capture else "web"
@@ -119,7 +121,7 @@ def update_task(
         .first()
     )
     if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise NotFoundError("Task")
 
     if body.status is not None:
         task.status = body.status.value if hasattr(body.status, "value") else body.status

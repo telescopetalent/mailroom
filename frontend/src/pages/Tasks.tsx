@@ -25,11 +25,14 @@ export default function Tasks() {
   const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
   const [showCompleted, setShowCompleted] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const loadTasks = () => {
+    setLoading(true);
     api<TaskList>("/tasks?status=open")
       .then((data) => setOpenTasks(data.items))
-      .catch((e) => setError(e.message));
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   };
 
   const loadCompleted = () => {
@@ -114,7 +117,9 @@ export default function Tasks() {
       {error && <p style={{ color: "red" }}>{error}</p>}
 
       {/* Open tasks */}
-      {openTasks.length === 0 ? (
+      {loading ? (
+        <p style={{ color: "#888" }}>Loading...</p>
+      ) : openTasks.length === 0 ? (
         <p style={{ color: "#888" }}>
           No open tasks. Capture content and approve extracted items to create tasks.
         </p>

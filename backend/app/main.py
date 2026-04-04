@@ -4,16 +4,20 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.core.middleware import RequestLoggingMiddleware
+from app.core.exceptions import MailroomError
+from app.core.middleware import CorrelationIdFilter, RequestLoggingMiddleware
 
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
-    format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
+    format="%(asctime)s %(levelname)-8s [%(request_id)s] %(name)s — %(message)s",
 )
+# Attach correlation ID filter to root logger
+logging.getLogger().addFilter(CorrelationIdFilter())
 
 
 def create_app() -> FastAPI:
@@ -33,6 +37,14 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.add_middleware(RequestLoggingMiddleware)
+
+    # Global exception handler for MailroomError hierarchy
+    @app.exception_handler(MailroomError)
+    async def mailroom_error_handler(request: Request, exc: MailroomError):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"error": exc.error_code, "message": exc.message},
+        )
 
     # Routers
     from app.api.health import router as health_router

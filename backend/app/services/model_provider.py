@@ -7,7 +7,10 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any
 
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
 from app.core.config import settings
+from app.core.exceptions import ExtractionError
 
 logger = logging.getLogger("mailroom.model_provider")
 
@@ -96,8 +99,12 @@ class AnthropicProvider(ModelProvider):
 
     def __init__(self):
         import anthropic
+        import httpx
 
-        self._client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        self._client = anthropic.Anthropic(
+            api_key=settings.anthropic_api_key,
+            timeout=httpx.Timeout(60.0, connect=10.0),
+        )
         self._model_id = "claude-sonnet-4-20250514"
 
     @property
@@ -113,17 +120,35 @@ class AnthropicProvider(ModelProvider):
             return self._extract_with_vision(text, image_data)
         return self._extract_text_only(text)
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=30),
+        retry=retry_if_exception_type((TimeoutError, ConnectionError)),
+        reraise=True,
+        before_sleep=lambda rs: logger.warning("Retrying extraction (attempt %d)...", rs.attempt_number),
+    )
     def _extract_text_only(self, text: str) -> dict[str, Any]:
         prompt = EXTRACTION_PROMPT.format(content=text)
 
-        response = self._client.messages.create(
-            model=self._model_id,
-            max_tokens=2048,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        try:
+            response = self._client.messages.create(
+                model=self._model_id,
+                max_tokens=2048,
+                messages=[{"role": "user", "content": prompt}],
+            )
+        except Exception as e:
+            logger.exception("Anthropic API call failed")
+            raise ExtractionError(f"AI extraction failed: {e}") from e
 
         return self._parse_response(response)
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=30),
+        retry=retry_if_exception_type((TimeoutError, ConnectionError)),
+        reraise=True,
+        before_sleep=lambda rs: logger.warning("Retrying vision extraction (attempt %d)...", rs.attempt_number),
+    )
     def _extract_with_vision(self, text: str, image_data: list[dict[str, str]]) -> dict[str, Any]:
         # Build multimodal content blocks
         content = []
@@ -145,11 +170,15 @@ class AnthropicProvider(ModelProvider):
         prompt = VISION_EXTRACTION_PROMPT.format(additional_context=additional)
         content.append({"type": "text", "text": prompt})
 
-        response = self._client.messages.create(
-            model=self._model_id,
-            max_tokens=2048,
-            messages=[{"role": "user", "content": content}],
-        )
+        try:
+            response = self._client.messages.create(
+                model=self._model_id,
+                max_tokens=2048,
+                messages=[{"role": "user", "content": content}],
+            )
+        except Exception as e:
+            logger.exception("Anthropic vision API call failed")
+            raise ExtractionError(f"AI vision extraction failed: {e}") from e
 
         return self._parse_response(response)
 

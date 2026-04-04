@@ -10,6 +10,8 @@ from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+
+from app.core.exceptions import NotFoundError, ValidationError
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -29,6 +31,18 @@ from app.services.model_provider import get_model_provider
 from app.services.storage import get_storage
 
 router = APIRouter(prefix="/captures", tags=["captures"])
+
+
+def _sanitize_filename(filename: str | None) -> str:
+    """Strip path components to prevent directory traversal."""
+    if not filename:
+        return "unnamed"
+    import os
+    # Remove any path separators
+    clean = os.path.basename(filename)
+    # Remove leading dots to prevent hidden files
+    clean = clean.lstrip(".")
+    return clean or "unnamed"
 
 
 def _extraction_to_dict(extraction: ExtractionRow) -> dict:
@@ -185,13 +199,14 @@ def create_capture_with_files(
         if len(file_data) > MAX_FILE_SIZE:
             raise HTTPException(status_code=400, detail=f"File '{f.filename}' exceeds 10MB limit")
 
-        key = f"{current_user['workspace_id']}/{uuid_mod.uuid4()}/{f.filename}"
+        safe_name = _sanitize_filename(f.filename)
+        key = f"{current_user['workspace_id']}/{uuid_mod.uuid4()}/{safe_name}"
         from io import BytesIO
         storage.upload(key, BytesIO(file_data), content_type)
 
         file_keys.append(key)
         file_metas.append({
-            "filename": f.filename,
+            "filename": safe_name,
             "content_type": content_type,
             "size_bytes": len(file_data),
         })
@@ -352,7 +367,7 @@ def get_capture(
         .first()
     )
     if not capture:
-        raise HTTPException(status_code=404, detail="Capture not found")
+        raise NotFoundError("Capture")
 
     extraction = db.query(ExtractionRow).filter(ExtractionRow.capture_id == capture.id).first()
     att_count = db.query(AttachmentRow).filter(AttachmentRow.capture_id == capture.id).count()
@@ -376,9 +391,9 @@ def trash_capture(
         .first()
     )
     if not capture:
-        raise HTTPException(status_code=404, detail="Capture not found")
+        raise NotFoundError("Capture")
     if capture.status == "trashed":
-        raise HTTPException(status_code=400, detail="Capture is already trashed")
+        raise ValidationError("Capture is already trashed")
 
     capture.previous_status = capture.status
     capture.status = "trashed"
@@ -408,7 +423,7 @@ def restore_capture(
         .first()
     )
     if not capture:
-        raise HTTPException(status_code=404, detail="Trashed capture not found")
+        raise NotFoundError("Trashed capture")
 
     capture.status = capture.previous_status or "review"
     capture.previous_status = None
@@ -437,9 +452,9 @@ def reopen_capture(
         .first()
     )
     if not capture:
-        raise HTTPException(status_code=404, detail="Capture not found")
+        raise NotFoundError("Capture")
     if capture.status not in ("approved", "rejected"):
-        raise HTTPException(status_code=400, detail="Only approved or rejected captures can be reopened")
+        raise ValidationError("Only approved or rejected captures can be reopened")
 
     capture.status = "review"
     db.commit()
@@ -467,7 +482,7 @@ def permanently_delete_capture(
         .first()
     )
     if not capture:
-        raise HTTPException(status_code=404, detail="Trashed capture not found")
+        raise NotFoundError("Trashed capture")
 
     # Orphan approved tasks — they survive capture deletion
     db.query(ApprovedTaskRow).filter(ApprovedTaskRow.capture_id == capture.id).update(

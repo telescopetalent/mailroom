@@ -46,6 +46,13 @@ class Settings(BaseSettings):
     webhook_email_secret: str = ""
     slack_signing_secret: str = ""
 
+    # Rate limiting
+    rate_limit_per_minute: int = 60
+
+    # Input limits
+    max_content_length: int = 100_000
+    max_file_size_mb: int = 10
+
     model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8"}
 
 

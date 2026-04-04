@@ -11,6 +11,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.exceptions import RateLimitError
+from app.core.rate_limit import rate_limiter
 from app.db.models import ApiKeyRow, UserRow
 
 security = HTTPBearer()
@@ -49,6 +51,10 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
         )
+
+    # Rate limit check
+    if not rate_limiter.is_allowed(str(row.user_id)):
+        raise RateLimitError()
 
     return {
         "user_id": row.user_id,

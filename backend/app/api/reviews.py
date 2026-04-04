@@ -6,6 +6,8 @@ from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+
+from app.core.exceptions import NotFoundError, ValidationError
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
@@ -37,14 +39,14 @@ def submit_review(
         .first()
     )
     if not capture:
-        raise HTTPException(status_code=404, detail="Capture not found")
+        raise NotFoundError("Capture")
 
     if capture.status not in ("review", "approved", "rejected"):
-        raise HTTPException(status_code=400, detail=f"Capture is in '{capture.status}' status, not reviewable")
+        raise ValidationError(f"Capture is in '{capture.status}' status, not reviewable")
 
     extraction = db.query(ExtractionRow).filter(ExtractionRow.capture_id == capture.id).first()
     if not extraction:
-        raise HTTPException(status_code=400, detail="No extraction found for this capture")
+        raise ValidationError("No extraction found for this capture")
 
     approved_count = 0
     rejected_count = 0

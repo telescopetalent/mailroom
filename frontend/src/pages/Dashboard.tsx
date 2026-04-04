@@ -45,11 +45,14 @@ export default function Dashboard() {
   const [captures, setCaptures] = useState<CaptureItem[]>([]);
   const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [loadingCaptures, setLoadingCaptures] = useState(false);
 
   const loadCaptures = () => {
+    setLoadingCaptures(true);
     api<CaptureList>("/captures")
       .then((data) => setCaptures(data.items))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoadingCaptures(false));
   };
 
   useEffect(() => {
@@ -114,7 +117,8 @@ export default function Dashboard() {
       <CaptureInput onCaptureCreated={loadCaptures} />
 
       <h3>Recent Captures</h3>
-      {captures.length === 0 && <p style={{ color: "#888" }}>No captures yet. Paste some text above to get started.</p>}
+      {loadingCaptures && <p style={{ color: "#888" }}>Loading...</p>}
+      {!loadingCaptures && captures.length === 0 && <p style={{ color: "#888" }}>No captures yet. Paste some text above to get started.</p>}
 
       {captures.map((cap) => (
         <div

@@ -10,7 +10,7 @@ from datetime import date, datetime
 from typing import Any, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .enums import (
     CaptureSource,
@@ -68,7 +68,7 @@ class CreateCaptureRequest(BaseModel):
     """
 
     source: CaptureSource
-    content_text: Optional[str] = None
+    content_text: Optional[str] = Field(None, max_length=100_000)
     content_url: Optional[str] = None
     source_ref: Optional[dict[str, Any]] = None
     mode: str = "ai"  # "ai" or "manual"

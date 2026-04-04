@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 from uuid import UUID
 
@@ -35,9 +36,11 @@ def run_pipeline(
     Returns the persisted CaptureRow and ExtractionRow.
     The caller is responsible for committing the transaction.
     """
+    pipeline_start = time.time()
     logger.info("Pipeline starting for user=%s workspace=%s source=%s", user_id, workspace_id, source)
 
     # Stage 1: Ingest
+    t0 = time.time()
     ingest_result = ingest(
         user_id=user_id,
         workspace_id=workspace_id,
@@ -48,18 +51,24 @@ def run_pipeline(
         file_keys=file_keys,
         file_metas=file_metas,
     )
-    logger.info("Ingest complete: content_type will be classified next")
+    logger.info("Ingest complete (%.0fms)", (time.time() - t0) * 1000)
 
     # Stage 2: Classify
+    t0 = time.time()
     classify_result = classify(ingest_result)
-    logger.info("Classify complete: content_type=%s", classify_result.content_type)
+    logger.info("Classify complete: content_type=%s (%.0fms)", classify_result.content_type, (time.time() - t0) * 1000)
 
     # Stage 3: Normalize (persists CaptureRow)
+    t0 = time.time()
     capture = normalize(ingest_result, classify_result, db)
-    logger.info("Normalize complete: capture_id=%s", capture.id)
+    logger.info("Normalize complete: capture_id=%s (%.0fms)", capture.id, (time.time() - t0) * 1000)
 
     # Stage 4: Extract (persists ExtractionRow, updates capture status)
+    t0 = time.time()
     extraction = extract(capture, provider, db)
-    logger.info("Extract complete: extraction_id=%s", extraction.id)
+    logger.info("Extract complete: extraction_id=%s (%.0fms)", extraction.id, (time.time() - t0) * 1000)
+
+    total_ms = (time.time() - pipeline_start) * 1000
+    logger.info("Pipeline complete: total=%.0fms", total_ms)
 
     return capture, extraction

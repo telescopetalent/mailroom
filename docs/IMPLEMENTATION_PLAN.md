@@ -9,8 +9,8 @@
 | 3 | Core platform foundation | Backend skeleton, DB, auth, basic frontend | Done |
 | 4 | Core engine MVP | Capture pipeline + extraction + review workflow | Done |
 | 5 | Core external surfaces | Email and Slack connectors | Done |
-| 6 | Quality, trust, reliability | Testing, monitoring, error handling, edge cases | Next |
-| 7 | Native surfaces | iPhone app, iOS share extension, Apple Notes, Chrome extension | Planned |
+| 6 | Quality, trust, reliability | Testing, monitoring, error handling, edge cases | Done |
+| 7 | Native surfaces | iPhone app, iOS share extension, Apple Notes, Chrome extension | Next |
 | 8 | Ambient capture | Desktop drag-and-drop bin | Planned |
 | 9 | Messaging expansion | SMS, Telegram, Discord, WhatsApp | Future |
 
@@ -187,23 +187,30 @@
 ### Milestone: Production-ready core system
 
 **Epic 6.1: Testing**
-- [ ] Unit tests for each pipeline stage
-- [ ] Integration tests for full pipeline
-- [ ] API endpoint tests
-- [ ] Frontend component tests
-- [ ] Connector-specific tests
+- [x] pytest test infrastructure with SQLite (conftest.py, fixtures, auth helpers)
+- [x] Pipeline stage tests (ingest, classify, normalize, extract) — 10 tests
+- [x] Capture API tests (CRUD, upload, trash/restore) — 12 tests
+- [x] Review workflow tests (approve, reject, mixed, reopen) — 7 tests
+- [x] Task API tests (list, filter, update, orphan survival) — 7 tests
+- [x] Webhook tests (email, Slack, unregistered senders) — 7 tests
+- [x] Model provider tests (stub, properties) — 3 tests
+- [x] Frontend tests: Vitest + @testing-library/react — 7 tests (CaptureInput, Tasks)
+- [x] TypeScript build passes clean
 
 **Epic 6.2: Error handling and resilience**
-- [ ] Pipeline stage failure handling and retry
-- [ ] Graceful degradation (if extraction fails, still save capture)
-- [ ] Input validation hardening
-- [ ] Rate limiting
+- [x] Custom exception hierarchy (MailroomError → NotFoundError, ValidationError, ExtractionError, RateLimitError)
+- [x] Global exception handler for structured JSON error responses
+- [x] Anthropic API timeout (60s) and error wrapping
+- [x] Retry logic with exponential backoff (3 attempts, 2-30s) via tenacity
+- [x] Input validation: content_text max_length=100K, filename sanitization
+- [x] Rate limiting: in-memory sliding-window (60 req/min per user, configurable)
 
 **Epic 6.3: Observability**
-- [ ] Structured logging
-- [ ] Pipeline stage timing metrics
-- [ ] Error tracking (Sentry or equivalent)
-- [ ] Health check dashboard
+- [x] Correlation IDs via contextvars (request_id in all log lines)
+- [x] Pipeline stage timing (per-stage and total duration logged)
+- [x] Loading states for Dashboard and Tasks pages
+- [ ] Error tracking (Sentry or equivalent — deferred to deployment)
+- [ ] Health check dashboard (deferred to deployment)
 
 **Epic 6.4: Edge cases**
 - [ ] Large file handling
