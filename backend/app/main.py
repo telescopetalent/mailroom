@@ -10,14 +10,12 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.core.exceptions import MailroomError
-from app.core.middleware import CorrelationIdFilter, RequestLoggingMiddleware
+from app.core.middleware import RequestLoggingMiddleware
 
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
-    format="%(asctime)s %(levelname)-8s [%(request_id)s] %(name)s — %(message)s",
+    format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
 )
-# Attach correlation ID filter to root logger
-logging.getLogger().addFilter(CorrelationIdFilter())
 
 
 def create_app() -> FastAPI:
