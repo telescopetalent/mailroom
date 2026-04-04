@@ -19,8 +19,9 @@ from .enums import (
     Priority,
     ReviewAction,
     TaskStatus,
+    WorkflowStatus,
 )
-from .extraction import Extraction, ExtractedTask
+from .extraction import Extraction, ExtractedTask, ExtractedWorkflow
 
 
 # ---------------------------------------------------------------------------
@@ -57,6 +58,7 @@ class ManualExtractionInput(BaseModel):
     next_steps: list[str] = Field(default_factory=list)
     blockers: list[str] = Field(default_factory=list)
     follow_ups: list[dict[str, Any]] = Field(default_factory=list)
+    workflows: list[dict[str, Any]] = Field(default_factory=list)
     priority: Priority = Priority.NONE
 
 
@@ -148,6 +150,9 @@ class TaskResponse(BaseModel):
     source_ref: Optional[dict[str, Any]] = None
     capture_id: Optional[UUID] = None
     extraction_id: Optional[UUID] = None
+    workflow_id: Optional[UUID] = None
+    workflow_name: Optional[str] = None
+    workflow_order: Optional[int] = None
     approved_at: datetime
     created_at: datetime
 
@@ -166,6 +171,52 @@ class UpdateTaskRequest(BaseModel):
     owner: Optional[str] = None
     due_date: Optional[date] = None
     priority: Optional[Priority] = None
+
+
+# ---------------------------------------------------------------------------
+# Workflow endpoints
+# ---------------------------------------------------------------------------
+
+
+class WorkflowTaskResponse(BaseModel):
+    """A task within a workflow response."""
+
+    id: UUID
+    title: str
+    description: Optional[str] = None
+    owner: Optional[str] = None
+    due_date: Optional[date] = None
+    priority: Priority
+    status: TaskStatus
+    workflow_order: int
+
+
+class WorkflowResponse(BaseModel):
+    """Response for an approved workflow with its tasks."""
+
+    id: UUID
+    workspace_id: UUID
+    name: str
+    description: Optional[str] = None
+    status: WorkflowStatus
+    capture_id: Optional[UUID] = None
+    tasks: list[WorkflowTaskResponse] = Field(default_factory=list)
+    approved_at: datetime
+    created_at: datetime
+
+
+class WorkflowListResponse(BaseModel):
+    """Paginated list of workflows."""
+
+    items: list[WorkflowResponse]
+    pagination: PaginationMeta
+
+
+class UpdateWorkflowRequest(BaseModel):
+    """Request body for PATCH /api/v1/workflows/{id}."""
+
+    status: Optional[WorkflowStatus] = None
+    name: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------

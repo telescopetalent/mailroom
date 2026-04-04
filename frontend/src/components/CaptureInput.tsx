@@ -18,8 +18,15 @@ interface ManualFollowUp {
   due_date: string;
 }
 
+interface ManualWorkflow {
+  name: string;
+  description: string;
+  steps: { title: string; owner: string }[];
+}
+
 const emptyTask = (): ManualTask => ({ title: "", owner: "", due_date: "", priority: "none" });
 const emptyFollowUp = (): ManualFollowUp => ({ description: "", owner: "", due_date: "" });
+const emptyWorkflow = (): ManualWorkflow => ({ name: "", description: "", steps: [{ title: "", owner: "" }] });
 
 const inputStyle: React.CSSProperties = {
   padding: "0.4rem 0.5rem",
@@ -85,6 +92,7 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
   const [nextSteps, setNextSteps] = useState<string[]>([""]);
   const [blockers, setBlockers] = useState<string[]>([""]);
   const [followUps, setFollowUps] = useState<ManualFollowUp[]>([emptyFollowUp()]);
+  const [manualWorkflows, setManualWorkflows] = useState<ManualWorkflow[]>([]);
   const [priority, setPriority] = useState("none");
 
   const resetManualForm = () => {
@@ -93,6 +101,7 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
     setNextSteps([""]);
     setBlockers([""]);
     setFollowUps([emptyFollowUp()]);
+    setManualWorkflows([]);
     setPriority("none");
   };
 
@@ -149,8 +158,19 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
         due_date: f.due_date || undefined,
       }));
 
-    if (!summary.trim() && filteredTasks.length === 0 && filteredNextSteps.length === 0) {
-      setError("Add a summary, at least one task, or a next step.");
+    const filteredWorkflows = manualWorkflows
+      .filter((w) => w.name.trim() && w.steps.some((s) => s.title.trim()))
+      .map((w) => ({
+        name: w.name,
+        description: w.description || undefined,
+        steps: w.steps.filter((s) => s.title.trim()).map((s) => ({
+          title: s.title,
+          owner: s.owner || undefined,
+        })),
+      }));
+
+    if (!summary.trim() && filteredTasks.length === 0 && filteredNextSteps.length === 0 && filteredWorkflows.length === 0) {
+      setError("Add a summary, at least one task, workflow, or next step.");
       return;
     }
 
@@ -166,6 +186,7 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
           manual_extraction: {
             summary: summary || undefined,
             tasks: filteredTasks,
+            workflows: filteredWorkflows,
             next_steps: filteredNextSteps,
             blockers: filteredBlockers,
             follow_ups: filteredFollowUps,
@@ -432,6 +453,104 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
                   </select>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Workflows */}
+          <div style={sectionStyle}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+              <div style={{ ...labelStyle, fontWeight: 600, margin: 0 }}>Workflows</div>
+              <button
+                onClick={() => setManualWorkflows((prev) => [...prev, emptyWorkflow()])}
+                style={{ fontSize: "0.8rem", padding: "0.2rem 0.5rem", cursor: "pointer" }}
+              >
+                + Add workflow
+              </button>
+            </div>
+            {manualWorkflows.length === 0 && (
+              <div style={{ color: "#aaa", fontSize: "0.8rem" }}>No workflows. Add one to group sequential steps.</div>
+            )}
+            {manualWorkflows.map((w, wi) => (
+              <div key={wi} style={{ marginBottom: "0.75rem", padding: "0.5rem", background: "white", borderRadius: "4px", border: "1px solid #e5e7eb" }}>
+                <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.4rem" }}>
+                  <input
+                    placeholder="Workflow name"
+                    value={w.name}
+                    onChange={(e) => setManualWorkflows((prev) => prev.map((wf, idx) => idx === wi ? { ...wf, name: e.target.value } : wf))}
+                    style={{ ...inputStyle, flex: 1, fontWeight: 600 }}
+                  />
+                  <button
+                    onClick={() => setManualWorkflows((prev) => prev.filter((_, idx) => idx !== wi))}
+                    style={{ fontSize: "0.8rem", color: "#999", cursor: "pointer", background: "none", border: "none" }}
+                  >
+                    Remove
+                  </button>
+                </div>
+                <input
+                  placeholder="Description (optional)"
+                  value={w.description}
+                  onChange={(e) => setManualWorkflows((prev) => prev.map((wf, idx) => idx === wi ? { ...wf, description: e.target.value } : wf))}
+                  style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: "0.4rem" }}
+                />
+                <div style={{ marginLeft: "0.5rem" }}>
+                  <div style={{ ...labelStyle, fontSize: "0.75rem", marginBottom: "0.3rem" }}>Steps (in order):</div>
+                  {w.steps.map((s, si) => (
+                    <div key={si} style={{ display: "flex", gap: "0.4rem", marginBottom: "0.3rem", alignItems: "center" }}>
+                      <span style={{ color: "#999", fontSize: "0.75rem", width: "1.2rem" }}>{si + 1}.</span>
+                      <input
+                        placeholder="Step title"
+                        value={s.title}
+                        onChange={(e) => {
+                          setManualWorkflows((prev) => prev.map((wf, idx) => {
+                            if (idx !== wi) return wf;
+                            const steps = [...wf.steps];
+                            steps[si] = { ...steps[si], title: e.target.value };
+                            return { ...wf, steps };
+                          }));
+                        }}
+                        style={{ ...inputStyle, flex: 1 }}
+                      />
+                      <input
+                        placeholder="Owner"
+                        value={s.owner}
+                        onChange={(e) => {
+                          setManualWorkflows((prev) => prev.map((wf, idx) => {
+                            if (idx !== wi) return wf;
+                            const steps = [...wf.steps];
+                            steps[si] = { ...steps[si], owner: e.target.value };
+                            return { ...wf, steps };
+                          }));
+                        }}
+                        style={{ ...inputStyle, width: "100px" }}
+                      />
+                      {w.steps.length > 1 && (
+                        <button
+                          onClick={() => {
+                            setManualWorkflows((prev) => prev.map((wf, idx) => {
+                              if (idx !== wi) return wf;
+                              return { ...wf, steps: wf.steps.filter((_, i) => i !== si) };
+                            }));
+                          }}
+                          style={{ fontSize: "0.7rem", color: "#999", cursor: "pointer", background: "none", border: "none" }}
+                        >
+                          x
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => {
+                      setManualWorkflows((prev) => prev.map((wf, idx) => {
+                        if (idx !== wi) return wf;
+                        return { ...wf, steps: [...wf.steps, { title: "", owner: "" }] };
+                      }));
+                    }}
+                    style={{ fontSize: "0.75rem", padding: "0.15rem 0.4rem", cursor: "pointer", marginTop: "0.2rem" }}
+                  >
+                    + Add step
+                  </button>
                 </div>
               </div>
             ))}

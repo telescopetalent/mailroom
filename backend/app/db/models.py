@@ -122,6 +122,8 @@ PRIORITY_ENUM = Enum("high", "medium", "low", "none", name="priority")
 
 TASK_STATUS_ENUM = Enum("open", "completed", name="task_status")
 
+WORKFLOW_STATUS_ENUM = Enum("open", "completed", name="workflow_status")
+
 
 class CaptureRow(Base):
     __tablename__ = "captures"
@@ -185,8 +187,34 @@ class ExtractionRow(Base):
     follow_ups = Column(JSONB, default=list)
     priority = Column(PRIORITY_ENUM, default="none")
     source_references = Column(JSONB, default=list)
+    workflows = Column(JSONB, default=list)
     model_provider = Column(String)
     model_id = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# Approved Workflows
+# ---------------------------------------------------------------------------
+
+
+class ApprovedWorkflowRow(Base):
+    __tablename__ = "approved_workflows"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    workspace_id = Column(
+        UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False, index=True
+    )
+    capture_id = Column(
+        UUID(as_uuid=True), ForeignKey("captures.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    extraction_id = Column(
+        UUID(as_uuid=True), ForeignKey("extractions.id", ondelete="SET NULL"), nullable=True
+    )
+    name = Column(String, nullable=False)
+    description = Column(Text)
+    status = Column(WORKFLOW_STATUS_ENUM, default="open", nullable=False)
+    approved_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
@@ -208,6 +236,10 @@ class ApprovedTaskRow(Base):
     workspace_id = Column(
         UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False, index=True
     )
+    workflow_id = Column(
+        UUID(as_uuid=True), ForeignKey("approved_workflows.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    workflow_order = Column(Integer, nullable=True)
     title = Column(String, nullable=False)
     description = Column(Text)
     owner = Column(String)

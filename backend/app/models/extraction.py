@@ -42,6 +42,24 @@ class FollowUp(BaseModel):
     due_date: Optional[date] = None
 
 
+class WorkflowStep(BaseModel):
+    """A single step within a workflow."""
+
+    title: str
+    description: Optional[str] = None
+    owner: Optional[str] = None
+    due_date: Optional[date] = None
+    priority: Priority = Priority.NONE
+
+
+class ExtractedWorkflow(BaseModel):
+    """A workflow extracted from captured content — a named sequence of steps."""
+
+    name: str
+    description: Optional[str] = None
+    steps: list[WorkflowStep] = Field(default_factory=list)
+
+
 class SourceReference(BaseModel):
     """A reference back to original source material."""
 
@@ -66,6 +84,7 @@ class Extraction(BaseModel):
     blockers: list[str] = Field(default_factory=list)
     follow_ups: list[FollowUp] = Field(default_factory=list)
     priority: Priority = Priority.NONE
+    workflows: list[ExtractedWorkflow] = Field(default_factory=list)
     source_references: list[SourceReference] = Field(default_factory=list)
     model_provider: Optional[str] = None  # e.g. "anthropic", "gemini"
     model_id: Optional[str] = None  # e.g. "claude-sonnet-4-6"

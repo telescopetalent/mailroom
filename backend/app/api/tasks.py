@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
 from app.core.database import get_db
-from app.db.models import ApprovedTaskRow, CaptureRow
+from app.db.models import ApprovedTaskRow, ApprovedWorkflowRow, CaptureRow
 from app.models.api_schemas import (
     PaginationMeta,
     TaskListResponse,
@@ -23,7 +23,7 @@ from app.models.api_schemas import (
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-def _task_to_response(task: ApprovedTaskRow, source: str) -> TaskResponse:
+def _task_to_response(task: ApprovedTaskRow, source: str, workflow_name: str | None = None) -> TaskResponse:
     return TaskResponse(
         id=task.id,
         workspace_id=task.workspace_id,
@@ -37,6 +37,9 @@ def _task_to_response(task: ApprovedTaskRow, source: str) -> TaskResponse:
         source_ref=task.source_ref,
         capture_id=task.capture_id,
         extraction_id=task.extraction_id,
+        workflow_id=task.workflow_id,
+        workflow_name=workflow_name,
+        workflow_order=task.workflow_order,
         approved_at=task.approved_at,
         created_at=task.created_at,
     )
@@ -63,11 +66,22 @@ def list_tasks(
     total = query.count()
     tasks = query.offset((page - 1) * page_size).limit(page_size).all()
 
+    # Cache workflow names to avoid N+1
+    workflow_names: dict = {}
+
     items = []
     for task in tasks:
         capture = db.query(CaptureRow).filter(CaptureRow.id == task.capture_id).first()
         source = capture.source if capture else "web"
-        items.append(_task_to_response(task, source))
+
+        wf_name = None
+        if task.workflow_id:
+            if task.workflow_id not in workflow_names:
+                wf = db.query(ApprovedWorkflowRow).filter(ApprovedWorkflowRow.id == task.workflow_id).first()
+                workflow_names[task.workflow_id] = wf.name if wf else None
+            wf_name = workflow_names[task.workflow_id]
+
+        items.append(_task_to_response(task, source, wf_name))
 
     return TaskListResponse(
         items=items,
@@ -101,7 +115,12 @@ def get_task(
     capture = db.query(CaptureRow).filter(CaptureRow.id == task.capture_id).first()
     source = capture.source if capture else "web"
 
-    return _task_to_response(task, source)
+    wf_name = None
+    if task.workflow_id:
+        wf = db.query(ApprovedWorkflowRow).filter(ApprovedWorkflowRow.id == task.workflow_id).first()
+        wf_name = wf.name if wf else None
+
+    return _task_to_response(task, source, wf_name)
 
 
 @router.patch("/{task_id}", response_model=TaskResponse)
@@ -135,7 +154,29 @@ def update_task(
     db.commit()
     db.refresh(task)
 
+    # Auto-complete/reopen parent workflow if this task belongs to one
+    if task.workflow_id:
+        siblings = (
+            db.query(ApprovedTaskRow)
+            .filter(ApprovedTaskRow.workflow_id == task.workflow_id)
+            .all()
+        )
+        all_completed = all(s.status == "completed" for s in siblings)
+        wf = db.query(ApprovedWorkflowRow).filter(ApprovedWorkflowRow.id == task.workflow_id).first()
+        if wf:
+            if all_completed and wf.status != "completed":
+                wf.status = "completed"
+                db.commit()
+            elif not all_completed and wf.status == "completed":
+                wf.status = "open"
+                db.commit()
+
     capture = db.query(CaptureRow).filter(CaptureRow.id == task.capture_id).first()
     source = capture.source if capture else "web"
 
-    return _task_to_response(task, source)
+    wf_name = None
+    if task.workflow_id:
+        wf = db.query(ApprovedWorkflowRow).filter(ApprovedWorkflowRow.id == task.workflow_id).first()
+        wf_name = wf.name if wf else None
+
+    return _task_to_response(task, source, wf_name)

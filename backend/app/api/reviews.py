@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
 from app.core.database import get_db
-from app.db.models import ApprovedTaskRow, CaptureRow, ExtractionRow
+from app.db.models import ApprovedTaskRow, ApprovedWorkflowRow, CaptureRow, ExtractionRow
 from app.models.api_schemas import ReviewResponse, SubmitReviewRequest
 
 router = APIRouter(prefix="/captures", tags=["reviews"])
@@ -128,6 +128,57 @@ def submit_review(
                 created_at=now,
             )
             db.add(approved_task)
+            approved_count += 1
+
+        elif decision.item_type == "workflow":
+            workflows = extraction.workflows or []
+            if decision.item_index >= len(workflows):
+                continue
+
+            wf_data = workflows[decision.item_index]
+
+            if decision.action == "reject":
+                rejected_count += 1
+                continue
+
+            # If edited, merge edits (supports reordering steps)
+            if decision.action == "edit" and decision.edited_value:
+                wf_data = {**wf_data, **decision.edited_value}
+
+            # Create workflow record
+            workflow = ApprovedWorkflowRow(
+                workspace_id=current_user["workspace_id"],
+                capture_id=capture.id,
+                extraction_id=extraction.id,
+                name=wf_data.get("name", "Untitled workflow"),
+                description=wf_data.get("description"),
+                status="open",
+                approved_at=now,
+                created_at=now,
+            )
+            db.add(workflow)
+            db.flush()  # Get workflow.id
+
+            # Create a task for each step in order
+            steps = wf_data.get("steps", [])
+            for order, step in enumerate(steps):
+                task = ApprovedTaskRow(
+                    extraction_id=extraction.id,
+                    capture_id=capture.id,
+                    workspace_id=current_user["workspace_id"],
+                    workflow_id=workflow.id,
+                    workflow_order=order,
+                    title=step.get("title", "Untitled step"),
+                    description=step.get("description"),
+                    owner=step.get("owner"),
+                    due_date=step.get("due_date"),
+                    priority=step.get("priority", "none"),
+                    source_ref=capture.source_ref or {},
+                    approved_at=now,
+                    created_at=now,
+                )
+                db.add(task)
+
             approved_count += 1
 
         else:

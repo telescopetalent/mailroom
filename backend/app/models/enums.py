@@ -73,3 +73,10 @@ class ReviewAction(StrEnum):
     APPROVE = "approve"
     EDIT = "edit"
     REJECT = "reject"
+
+
+class WorkflowStatus(StrEnum):
+    """Status of an approved workflow."""
+
+    OPEN = "open"
+    COMPLETED = "completed"

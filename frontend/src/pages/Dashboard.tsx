@@ -9,6 +9,7 @@ interface Extraction {
   summary: string | null;
   next_steps: string[];
   tasks: { title: string; description?: string; owner?: string; due_date?: string; priority?: string }[];
+  workflows: { name: string; description?: string; steps: { title: string; owner?: string; due_date?: string; priority?: string }[] }[];
   blockers: string[];
   follow_ups: { description: string; owner?: string; due_date?: string }[];
   priority: string;

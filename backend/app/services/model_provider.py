@@ -18,11 +18,12 @@ EXTRACTION_PROMPT = """You are an action extraction engine. Analyze the followin
 
 Return a JSON object with these fields:
 - "summary": A brief 1-2 sentence summary of the content
-- "next_steps": Array of strings — identified next actions
-- "tasks": Array of objects with (title, description, owner, due_date, priority)
-  - owner: only include if explicitly mentioned (name or role)
-  - due_date: only include if explicitly mentioned (ISO format YYYY-MM-DD)
-  - priority: "high", "medium", "low", or "none"
+- "tasks": Array of INDEPENDENT, standalone tasks — objects with (title, description, owner, due_date, priority). Only put tasks here that are NOT part of a sequence.
+- "workflows": Array of workflows — use this when multiple tasks form a logical sequence toward a goal. Each workflow is an object with:
+  - "name": Short name for the workflow (e.g. "Weekly meal plan", "Deploy release")
+  - "description": Brief description of the goal (optional)
+  - "steps": Array of ordered task objects with (title, description, owner, due_date, priority)
+- "next_steps": Array of strings — identified next actions that aren't full tasks
 - "owners": Array of strings — all people/roles mentioned as responsible
 - "due_dates": Array of objects with (description, date, source_text)
   - date: ISO format YYYY-MM-DD if parseable, null otherwise
@@ -32,7 +33,14 @@ Return a JSON object with these fields:
 - "priority": Overall priority of the content: "high", "medium", "low", or "none"
 - "source_references": Array of objects with (source, url, description)
 
-Rules:
+Workflow vs tasks rules:
+- If tasks must be done in order or work toward a shared goal, group them into a workflow
+- If a task is truly independent and standalone, put it in "tasks"
+- A single isolated task should NOT be a workflow
+- owner/due_date: only include if explicitly mentioned
+- priority: "high", "medium", "low", or "none"
+
+General rules:
 - Only extract what is explicitly stated in the content
 - Do NOT invent owners, dates, or tasks that aren't mentioned
 - If a field has no relevant data, use an empty array or null
@@ -51,17 +59,17 @@ Read and understand everything visible in the image(s), then extract structured 
 
 Return a JSON object with these fields:
 - "summary": A brief 1-2 sentence summary of what the image contains
-- "next_steps": Array of strings — identified next actions
-- "tasks": Array of objects with (title, description, owner, due_date, priority)
-  - owner: only include if explicitly mentioned
-  - due_date: only include if explicitly mentioned (ISO format YYYY-MM-DD)
-  - priority: "high", "medium", "low", or "none"
+- "tasks": Array of INDEPENDENT, standalone tasks — objects with (title, description, owner, due_date, priority). Only put tasks here that are NOT part of a sequence.
+- "workflows": Array of workflows — use when multiple tasks form a logical sequence toward a goal. Each workflow: (name, description, steps: [{title, description, owner, due_date, priority}])
+- "next_steps": Array of strings — next actions that aren't full tasks
 - "owners": Array of strings — all people/roles mentioned as responsible
 - "due_dates": Array of objects with (description, date, source_text)
 - "blockers": Array of strings — identified blockers or dependencies
 - "follow_ups": Array of objects with (description, owner, due_date)
 - "priority": Overall priority: "high", "medium", "low", or "none"
 - "source_references": Array of objects with (source, url, description)
+
+Workflow vs tasks: Group sequential/related steps into workflows. Keep truly independent tasks separate.
 
 Rules:
 - Only extract what is explicitly visible in the image(s)
@@ -211,6 +219,7 @@ class AnthropicProvider(ModelProvider):
                 "owners": [],
                 "due_dates": [],
                 "blockers": [],
+                "workflows": [],
                 "follow_ups": [],
                 "priority": "none",
                 "source_references": [],
