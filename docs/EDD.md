@@ -354,11 +354,59 @@ All thin clients follow the same pattern:
 | No ORM initially | Raw SQL or SQLAlchemy Core | Avoid ORM complexity early; upgrade later if needed |
 | Webhook-based connectors | Pull not push | Email and Slack push to us; we don't poll |
 
-## 8. Security Considerations
+## 8. Quality and Reliability (Phase 6)
 
-- All API endpoints require authentication
-- Webhook endpoints verify signatures (Slack signing secret, email DKIM)
-- File uploads scanned for size limits, content type validation
+### Testing
+
+| Suite | Framework | Tests | Scope |
+|-------|-----------|-------|-------|
+| Backend | pytest + SQLite | 46 | Pipeline stages, API endpoints, webhooks, model provider |
+| Frontend | Vitest + @testing-library/react | 7 | CaptureInput, Tasks page |
+
+Test infrastructure uses an in-memory SQLite database with type adapters for PostgreSQL UUID/JSONB columns, avoiding external dependencies.
+
+### Error Handling
+
+Custom exception hierarchy (`app/core/exceptions.py`):
+- `MailroomError` (base) → `NotFoundError`, `ValidationError`, `ExtractionError`, `ExternalServiceError`, `RateLimitError`
+- Global exception handler returns structured JSON: `{"error": "error_code", "message": "..."}`
+- Anthropic API calls have 60-second timeout
+
+### Retry Logic
+
+AI extraction calls use `tenacity` for automatic retry:
+- 3 attempts with exponential backoff (2s → 30s)
+- Retries on `TimeoutError` and `ConnectionError`
+- Non-retryable errors (auth, invalid request) propagate immediately
+
+### Rate Limiting
+
+In-memory sliding-window rate limiter (`app/core/rate_limit.py`):
+- Default: 60 requests/minute per user (configurable via `RATE_LIMIT_PER_MINUTE`)
+- Checked in the `get_current_user` auth dependency
+- Returns 429 when exceeded
+- Note: In-memory only — Redis needed for horizontal scaling
+
+### Input Validation
+
+- `content_text` limited to 100,000 characters
+- Uploaded filenames sanitized to prevent path traversal
+- File uploads limited to 10MB per file, 5 files max
+- Webhook signature verification ready (skipped when secrets not configured)
+
+### Observability
+
+- Request correlation IDs via `contextvars` (available in `request_id_var`)
+- Middleware logs request ID, method, path, status, and duration for every request
+- Pipeline orchestrator logs per-stage timing and total pipeline duration
+
+## 9. Security Considerations
+
+- All API endpoints require authentication (API key via Bearer token)
+- Webhook endpoints are unauthenticated but verify sender via surface_connections lookup
+- Rate limiting prevents API abuse (429 response)
+- File uploads: size limits, content type whitelist, filename sanitization
+- Custom exceptions prevent leaking internal error details
 - No PII in logs
 - S3 bucket not publicly accessible
 - Environment variables for all secrets

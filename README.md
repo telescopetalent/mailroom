@@ -12,7 +12,7 @@ Mailroom is a routing layer first and an AI action engine second.
 
 ## Current Status
 
-**Phases 1–5 complete.** The platform has a working backend, frontend, AI extraction pipeline, and connectors for email and Slack (stubbed for local testing — ready to wire up to AWS SES and Slack API).
+**Phases 1–6 complete.** The platform has a working backend, frontend, AI extraction pipeline, connectors for email and Slack (stubbed for local testing), and a full test suite with production hardening.
 
 | Phase | Status |
 |-------|--------|
@@ -21,8 +21,8 @@ Mailroom is a routing layer first and an AI action engine second.
 | 3. Core platform foundation | Done |
 | 4. Core engine MVP | Done |
 | 5. Email and Slack connectors | Done |
-| 6. Quality, trust, reliability | Next |
-| 7. Native surfaces (iOS, Chrome extension) | Planned |
+| 6. Quality, trust, reliability | Done |
+| 7. Native surfaces (iOS, Chrome extension) | Next |
 | 8. Ambient capture (desktop drag-and-drop) | Planned |
 | 9. Messaging expansion (SMS, Telegram, etc.) | Future |
 
@@ -202,17 +202,32 @@ Without an API key, captures use the stub provider (returns a placeholder summar
 
 ---
 
+## What's Built for Quality (Phase 6)
+
+- **46 backend tests** — pipeline, captures, reviews, tasks, webhooks, model provider (pytest + SQLite)
+- **7 frontend tests** — CaptureInput, Tasks page (Vitest + @testing-library/react)
+- **Custom exceptions** — MailroomError hierarchy with structured JSON error responses
+- **Retry logic** — Anthropic API calls retry 3x with exponential backoff (2-30s) via tenacity
+- **Rate limiting** — 60 requests/min per user, in-memory sliding window
+- **Input validation** — Content length limits (100K chars), filename sanitization (path traversal prevention)
+- **Correlation IDs** — Request ID in middleware logs and available via contextvars
+- **Pipeline timing** — Per-stage and total duration logged
+
+### Running Tests
+
+```bash
+# Backend
+cd backend && python3 -m pytest tests/ -v
+
+# Frontend
+cd frontend && npm test
+```
+
+---
+
 ## What Remains to Build
 
-### Phase 6 — Quality, Trust, and Reliability (Next)
-- Unit and integration tests for pipeline, API, and connectors
-- Error handling and retry logic for pipeline failures
-- Input validation hardening and rate limiting
-- Structured logging and observability (Sentry, metrics)
-- Edge cases: large files, malformed input, duplicates
-- URL content fetching for link-based captures
-
-### Phase 7 — Native Surfaces
+### Phase 7 — Native Surfaces (Next)
 - **iPhone app** — SwiftUI capture-first app with camera, paste, voice input
 - **iOS share extension** — Capture from any app via the share sheet
 - **Apple Notes share flow** — Share from Notes directly
