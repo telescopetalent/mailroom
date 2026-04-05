@@ -17,6 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { api } from "../api/client";
+import TaskDetailModal from "../components/TaskDetailModal";
 
 interface Task {
   id: string;
@@ -63,7 +64,7 @@ interface WorkflowList {
   pagination: { total_count: number };
 }
 
-function SortableStep({ step, index, onToggle }: { step: WorkflowTask; index: number; onToggle: () => void }) {
+function SortableStep({ step, index, onToggle, onSelect }: { step: WorkflowTask; index: number; onToggle: () => void; onSelect: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
 
   const style = {
@@ -105,9 +106,11 @@ function SortableStep({ step, index, onToggle }: { step: WorkflowTask; index: nu
         {index + 1}.
       </span>
       <span
+        onClick={onSelect}
         style={{
           flex: 1,
           textDecoration: step.status === "completed" ? "line-through" : "none",
+          cursor: "pointer",
         }}
       >
         {step.title}
@@ -125,6 +128,7 @@ export default function Tasks() {
   const [showCompleted, setShowCompleted] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const loadAll = () => {
     setLoading(true);
@@ -226,7 +230,10 @@ export default function Tasks() {
         style={{ marginTop: "0.2rem" }}
       />
       <div style={{ flex: 1 }}>
-        <div style={{ textDecoration: task.status === "completed" ? "line-through" : "none" }}>
+        <div
+          onClick={() => setSelectedTaskId(task.id)}
+          style={{ textDecoration: task.status === "completed" ? "line-through" : "none", cursor: "pointer" }}
+        >
           <strong>{task.title}</strong>
         </div>
         {task.description && (
@@ -296,6 +303,7 @@ export default function Tasks() {
                 step={step}
                 index={si}
                 onToggle={() => toggleTaskStatus(step)}
+                onSelect={() => setSelectedTaskId(step.id)}
               />
             ))}
           </SortableContext>
@@ -375,6 +383,18 @@ export default function Tasks() {
           </div>
         )}
       </div>
+
+      {/* Task detail modal */}
+      {selectedTaskId && (
+        <TaskDetailModal
+          taskId={selectedTaskId}
+          onClose={() => setSelectedTaskId(null)}
+          onUpdate={() => {
+            loadAll();
+            if (showCompleted) loadCompleted();
+          }}
+        />
+      )}
     </div>
   );
 }

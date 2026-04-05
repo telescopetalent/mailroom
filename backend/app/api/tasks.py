@@ -32,6 +32,10 @@ def _task_to_response(task: ApprovedTaskRow, source: str, workflow_name: str | N
         owner=task.owner,
         due_date=task.due_date,
         priority=task.priority or "none",
+        labels=task.labels or [],
+        reminder=task.reminder,
+        location=task.location,
+        notes=task.notes,
         status=task.status,
         source=source,
         source_ref=task.source_ref,
@@ -142,6 +146,10 @@ def update_task(
     if not task:
         raise NotFoundError("Task")
 
+    if body.title is not None:
+        task.title = body.title
+    if body.description is not None:
+        task.description = body.description
     if body.status is not None:
         task.status = body.status.value if hasattr(body.status, "value") else body.status
     if body.owner is not None:
@@ -150,6 +158,14 @@ def update_task(
         task.due_date = body.due_date
     if body.priority is not None:
         task.priority = body.priority.value if hasattr(body.priority, "value") else body.priority
+    if body.labels is not None:
+        task.labels = body.labels
+    if body.reminder is not None:
+        task.reminder = body.reminder
+    if body.location is not None:
+        task.location = body.location
+    if body.notes is not None:
+        task.notes = body.notes
 
     db.commit()
     db.refresh(task)

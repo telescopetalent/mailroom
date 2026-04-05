@@ -145,6 +145,10 @@ class TaskResponse(BaseModel):
     owner: Optional[str] = None
     due_date: Optional[date] = None
     priority: Priority
+    labels: list[str] = Field(default_factory=list)
+    reminder: Optional[datetime] = None
+    location: Optional[str] = None
+    notes: Optional[str] = None
     status: TaskStatus
     source: CaptureSource
     source_ref: Optional[dict[str, Any]] = None
@@ -167,10 +171,16 @@ class TaskListResponse(BaseModel):
 class UpdateTaskRequest(BaseModel):
     """Request body for PATCH /api/v1/tasks/{id}."""
 
+    title: Optional[str] = None
+    description: Optional[str] = None
     status: Optional[TaskStatus] = None
     owner: Optional[str] = None
     due_date: Optional[date] = None
     priority: Optional[Priority] = None
+    labels: Optional[list[str]] = None
+    reminder: Optional[datetime] = None
+    location: Optional[str] = None
+    notes: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
