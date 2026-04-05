@@ -1,4 +1,18 @@
 import { useState } from "react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { api } from "../api/client";
 
 interface WorkflowStep {
@@ -39,6 +53,57 @@ interface Decision {
   edited_value?: Record<string, unknown>;
 }
 
+function SortableReviewStep({ id, index, step, isLast, onEditTitle }: {
+  id: number;
+  index: number;
+  step: WorkflowStep;
+  isLast: boolean;
+  onEditTitle: (title: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+    padding: "0.35rem 0",
+    borderBottom: isLast ? "none" : "1px solid #eee",
+    opacity: isDragging ? 0.5 : 1,
+    background: isDragging ? "#f0f4ff" : "transparent",
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <span
+        {...listeners}
+        style={{ cursor: "grab", color: "#ccc", fontSize: "0.9rem", padding: "0 0.2rem", userSelect: "none", touchAction: "none" }}
+        title="Drag to reorder"
+      >
+        &#x2807;
+      </span>
+      <span style={{ color: "#999", fontSize: "0.8rem", width: "1.5rem", textAlign: "center" }}>{index + 1}.</span>
+      <input
+        type="text"
+        value={step.title}
+        onChange={(e) => onEditTitle(e.target.value)}
+        style={{
+          flex: 1,
+          border: "none",
+          borderBottom: "1px solid transparent",
+          background: "transparent",
+          fontSize: "0.9rem",
+          padding: "0.2rem 0",
+        }}
+        onFocus={(e) => (e.target.style.borderBottomColor = "#2563eb")}
+        onBlur={(e) => (e.target.style.borderBottomColor = "transparent")}
+      />
+      {step.owner && <span style={{ color: "#888", fontSize: "0.75rem" }}>{step.owner}</span>}
+    </div>
+  );
+}
+
 export default function ReviewPanel({ captureId, extraction, onReviewComplete }: ReviewPanelProps) {
   const [decisions, setDecisions] = useState<Record<string, "approve" | "reject">>({});
   const [workflowEdits, setWorkflowEdits] = useState<Record<number, Workflow>>({});
@@ -53,12 +118,21 @@ export default function ReviewPanel({ captureId, extraction, onReviewComplete }:
     return workflowEdits[index] || (extraction.workflows || [])[index];
   };
 
-  const moveStep = (wfIndex: number, stepIndex: number, direction: "up" | "down") => {
-    const wf = { ...getWorkflow(wfIndex), steps: [...getWorkflow(wfIndex).steps] };
-    const newIndex = direction === "up" ? stepIndex - 1 : stepIndex + 1;
-    if (newIndex < 0 || newIndex >= wf.steps.length) return;
-    [wf.steps[stepIndex], wf.steps[newIndex]] = [wf.steps[newIndex], wf.steps[stepIndex]];
-    setWorkflowEdits((prev) => ({ ...prev, [wfIndex]: wf }));
+  const reviewSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  const handleStepDragEnd = (wfIndex: number) => (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const wf = getWorkflow(wfIndex);
+    const oldIndex = Number(active.id);
+    const newIndex = Number(over.id);
+    if (oldIndex === newIndex) return;
+    const steps = [...wf.steps];
+    const [moved] = steps.splice(oldIndex, 1);
+    steps.splice(newIndex, 0, moved);
+    setWorkflowEdits((prev) => ({ ...prev, [wfIndex]: { ...wf, steps } }));
   };
 
   const editStepTitle = (wfIndex: number, stepIndex: number, title: string) => {
@@ -215,52 +289,22 @@ export default function ReviewPanel({ captureId, extraction, onReviewComplete }:
           </div>
         </div>
 
-        {/* Steps list */}
+        {/* Steps list — drag to reorder */}
         <div style={{ marginLeft: "0.5rem" }}>
-          {wf.steps.map((step, si) => (
-            <div
-              key={si}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                padding: "0.35rem 0",
-                borderBottom: si < wf.steps.length - 1 ? "1px solid #eee" : "none",
-              }}
-            >
-              <span style={{ color: "#999", fontSize: "0.8rem", width: "1.5rem", textAlign: "center" }}>{si + 1}.</span>
-              <input
-                type="text"
-                value={step.title}
-                onChange={(e) => editStepTitle(wfIndex, si, e.target.value)}
-                style={{
-                  flex: 1,
-                  border: "none",
-                  borderBottom: "1px solid transparent",
-                  background: "transparent",
-                  fontSize: "0.9rem",
-                  padding: "0.2rem 0",
-                }}
-                onFocus={(e) => (e.target.style.borderBottomColor = "#2563eb")}
-                onBlur={(e) => (e.target.style.borderBottomColor = "transparent")}
-              />
-              {step.owner && <span style={{ color: "#888", fontSize: "0.75rem" }}>{step.owner}</span>}
-              <button
-                onClick={() => moveStep(wfIndex, si, "up")}
-                disabled={si === 0}
-                style={{ fontSize: "0.7rem", padding: "0.15rem 0.3rem", cursor: si === 0 ? "default" : "pointer", opacity: si === 0 ? 0.3 : 1, border: "1px solid #ddd", borderRadius: "2px", background: "#fff" }}
-              >
-                ↑
-              </button>
-              <button
-                onClick={() => moveStep(wfIndex, si, "down")}
-                disabled={si === wf.steps.length - 1}
-                style={{ fontSize: "0.7rem", padding: "0.15rem 0.3rem", cursor: si === wf.steps.length - 1 ? "default" : "pointer", opacity: si === wf.steps.length - 1 ? 0.3 : 1, border: "1px solid #ddd", borderRadius: "2px", background: "#fff" }}
-              >
-                ↓
-              </button>
-            </div>
-          ))}
+          <DndContext sensors={reviewSensors} collisionDetection={closestCenter} onDragEnd={handleStepDragEnd(wfIndex)}>
+            <SortableContext items={wf.steps.map((_, i) => i)} strategy={verticalListSortingStrategy}>
+              {wf.steps.map((step, si) => (
+                <SortableReviewStep
+                  key={si}
+                  id={si}
+                  index={si}
+                  step={step}
+                  isLast={si === wf.steps.length - 1}
+                  onEditTitle={(title) => editStepTitle(wfIndex, si, title)}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         </div>
       </div>
     );
