@@ -46,6 +46,7 @@ export default function TaskDetailModal({ taskId, onClose, onUpdate }: TaskDetai
   const [loading, setLoading] = useState(true);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [labelInput, setLabelInput] = useState("");
+  const [availableWorkflows, setAvailableWorkflows] = useState<{ id: string; name: string }[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -54,6 +55,10 @@ export default function TaskDetailModal({ taskId, onClose, onUpdate }: TaskDetai
       .then(setTask)
       .catch(() => onClose())
       .finally(() => setLoading(false));
+    // Load available workflows for dependency picker
+    api<{ items: { id: string; name: string; status: string }[] }>("/workflows")
+      .then((data) => setAvailableWorkflows(data.items.filter((w) => w.status === "open")))
+      .catch(() => {});
   }, [taskId]);
 
   // Close on Escape
@@ -328,13 +333,13 @@ export default function TaskDetailModal({ taskId, onClose, onUpdate }: TaskDetai
         </div>
 
         {/* Blocked by */}
-        {(task.blocked_by_workflow_name || task.blocked_by_task_title) && (
-          <>
-            <div style={dividerStyle} />
-            <div style={metaRowStyle}>
-              <span style={metaIconStyle}>{"\u{1F512}"}</span>
-              <span style={metaLabelStyle}>Blocked by</span>
-              <div style={{ flex: 1 }}>
+        <div style={dividerStyle} />
+        <div style={metaRowStyle}>
+          <span style={metaIconStyle}>{"\u{1F512}"}</span>
+          <span style={metaLabelStyle}>Blocked by</span>
+          <div style={{ flex: 1 }}>
+            {task.blocked_by_workflow_name || task.blocked_by_task_title ? (
+              <>
                 <span style={{
                   background: task.is_blocked ? "#fef2f2" : "#dcfce7",
                   color: task.is_blocked ? "#dc2626" : "#166534",
@@ -351,10 +356,23 @@ export default function TaskDetailModal({ taskId, onClose, onUpdate }: TaskDetai
                 >
                   remove
                 </button>
-              </div>
-            </div>
-          </>
-        )}
+              </>
+            ) : availableWorkflows.length > 0 ? (
+              <select
+                value=""
+                onChange={(e) => { if (e.target.value) saveField("blocked_by_workflow_id", e.target.value); }}
+                style={{ border: "1px solid #e5e7eb", borderRadius: "4px", padding: "0.2rem 0.4rem", fontSize: "0.82rem", color: "#888", background: "transparent", cursor: "pointer", fontFamily: "inherit" }}
+              >
+                <option value="">Add dependency...</option>
+                {availableWorkflows.map((w) => (
+                  <option key={w.id} value={w.id}>{w.name}</option>
+                ))}
+              </select>
+            ) : (
+              <span style={{ color: "#ccc", fontSize: "0.82rem" }}>None</span>
+            )}
+          </div>
+        </div>
 
         {/* Workflow info */}
         {task.workflow_name && (
