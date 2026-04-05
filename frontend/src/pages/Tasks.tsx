@@ -1,5 +1,21 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { api } from "../api/client";
 
 interface Task {
@@ -47,6 +63,60 @@ interface WorkflowList {
   pagination: { total_count: number };
 }
 
+function SortableStep({ step, index, onToggle }: { step: WorkflowTask; index: number; onToggle: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+    padding: "0.35rem 0",
+    borderBottom: "1px solid #f3f4f6",
+    opacity: isDragging ? 0.5 : step.status === "completed" ? 0.6 : 1,
+    background: isDragging ? "#f0f4ff" : "transparent",
+    cursor: "default",
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      {/* Drag handle */}
+      <span
+        {...listeners}
+        style={{
+          cursor: "grab",
+          color: "#ccc",
+          fontSize: "0.9rem",
+          padding: "0 0.2rem",
+          userSelect: "none",
+          touchAction: "none",
+        }}
+        title="Drag to reorder"
+      >
+        ⠿
+      </span>
+      <input
+        type="checkbox"
+        checked={step.status === "completed"}
+        onChange={onToggle}
+      />
+      <span style={{ color: "#999", fontSize: "0.75rem", width: "1.5rem", textAlign: "center" }}>
+        {index + 1}.
+      </span>
+      <span
+        style={{
+          flex: 1,
+          textDecoration: step.status === "completed" ? "line-through" : "none",
+        }}
+      >
+        {step.title}
+      </span>
+      {step.owner && <span style={{ color: "#888", fontSize: "0.75rem" }}>{step.owner}</span>}
+    </div>
+  );
+}
+
 export default function Tasks() {
   const [standaloneTasks, setStandaloneTasks] = useState<Task[]>([]);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
@@ -91,14 +161,9 @@ export default function Tasks() {
     }
   }, [showCompleted]);
 
-  const moveStep = async (wf: Workflow, stepIndex: number, direction: "up" | "down") => {
-    const tasks = [...wf.tasks];
-    const newIndex = direction === "up" ? stepIndex - 1 : stepIndex + 1;
-    if (newIndex < 0 || newIndex >= tasks.length) return;
-    [tasks[stepIndex], tasks[newIndex]] = [tasks[newIndex], tasks[stepIndex]];
-    const taskIds = tasks.map((t) => t.id);
+  const reorderSteps = async (workflowId: string, taskIds: string[]) => {
     try {
-      await api(`/workflows/${wf.id}/reorder`, {
+      await api(`/workflows/${workflowId}/reorder`, {
         method: "POST",
         body: JSON.stringify({ task_ids: taskIds }),
       });
@@ -106,6 +171,25 @@ export default function Tasks() {
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Unknown error");
     }
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = (wf: Workflow) => (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = wf.tasks.findIndex((t) => t.id === active.id);
+    const newIndex = wf.tasks.findIndex((t) => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = [...wf.tasks];
+    const [moved] = reordered.splice(oldIndex, 1);
+    reordered.splice(newIndex, 0, moved);
+    reorderSteps(wf.id, reordered.map((t) => t.id));
   };
 
   const toggleTaskStatus = async (task: Task | WorkflowTask) => {
@@ -203,59 +287,19 @@ export default function Tasks() {
           />
         </div>
 
-        {/* Steps */}
-        {wf.tasks.map((step, si) => (
-          <div
-            key={step.id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              padding: "0.35rem 0",
-              borderBottom: "1px solid #f3f4f6",
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={step.status === "completed"}
-              onChange={() => toggleTaskStatus(step)}
-            />
-            <span
-              style={{
-                color: "#999",
-                fontSize: "0.75rem",
-                width: "1.5rem",
-                textAlign: "center",
-              }}
-            >
-              {step.workflow_order + 1}.
-            </span>
-            <span
-              style={{
-                flex: 1,
-                textDecoration: step.status === "completed" ? "line-through" : "none",
-                opacity: step.status === "completed" ? 0.6 : 1,
-              }}
-            >
-              {step.title}
-            </span>
-            {step.owner && <span style={{ color: "#888", fontSize: "0.75rem" }}>{step.owner}</span>}
-            <button
-              onClick={() => moveStep(wf, si, "up")}
-              disabled={si === 0}
-              style={{ fontSize: "0.7rem", padding: "0.15rem 0.3rem", cursor: si === 0 ? "default" : "pointer", opacity: si === 0 ? 0.3 : 1, border: "1px solid #ddd", borderRadius: "2px", background: "#fff" }}
-            >
-              ↑
-            </button>
-            <button
-              onClick={() => moveStep(wf, si, "down")}
-              disabled={si === wf.tasks.length - 1}
-              style={{ fontSize: "0.7rem", padding: "0.15rem 0.3rem", cursor: si === wf.tasks.length - 1 ? "default" : "pointer", opacity: si === wf.tasks.length - 1 ? 0.3 : 1, border: "1px solid #ddd", borderRadius: "2px", background: "#fff" }}
-            >
-              ↓
-            </button>
-          </div>
-        ))}
+        {/* Steps — drag to reorder */}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd(wf)}>
+          <SortableContext items={wf.tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+            {wf.tasks.map((step, si) => (
+              <SortableStep
+                key={step.id}
+                step={step}
+                index={si}
+                onToggle={() => toggleTaskStatus(step)}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
 
         {wf.capture_id && (
           <div style={{ marginTop: "0.5rem", fontSize: "0.8rem" }}>
