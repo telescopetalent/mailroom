@@ -50,7 +50,7 @@ export default function ReviewPanel({ captureId, extraction, onReviewComplete }:
   };
 
   const getWorkflow = (index: number): Workflow => {
-    return workflowEdits[index] || extraction.workflows[index];
+    return workflowEdits[index] || (extraction.workflows || [])[index];
   };
 
   const moveStep = (wfIndex: number, stepIndex: number, direction: "up" | "down") => {
@@ -102,7 +102,7 @@ export default function ReviewPanel({ captureId, extraction, onReviewComplete }:
   const approveAll = () => {
     const all: Record<string, "approve"> = {};
     extraction.tasks.forEach((_, i) => (all[`task-${i}`] = "approve"));
-    extraction.workflows.forEach((_, i) => (all[`workflow-${i}`] = "approve"));
+    (extraction.workflows || []).forEach((_, i) => (all[`workflow-${i}`] = "approve"));
     extraction.next_steps.forEach((_, i) => (all[`next_step-${i}`] = "approve"));
     extraction.follow_ups.forEach((_, i) => (all[`follow_up-${i}`] = "approve"));
     setDecisions(all);
@@ -266,9 +266,11 @@ export default function ReviewPanel({ captureId, extraction, onReviewComplete }:
     );
   };
 
+  const workflows = extraction.workflows || [];
+
   const hasItems =
     extraction.tasks.length > 0 ||
-    extraction.workflows.length > 0 ||
+    workflows.length > 0 ||
     extraction.next_steps.length > 0 ||
     extraction.follow_ups.length > 0;
 
@@ -289,10 +291,10 @@ export default function ReviewPanel({ captureId, extraction, onReviewComplete }:
         </div>
       )}
 
-      {extraction.workflows.length > 0 && (
+      {workflows.length > 0 && (
         <div style={{ marginBottom: "1rem" }}>
           <h4 style={{ margin: "0 0 0.5rem" }}>Workflows</h4>
-          {extraction.workflows.map((_, i) => renderWorkflow(i))}
+          {workflows.map((_, i) => renderWorkflow(i))}
         </div>
       )}
 
