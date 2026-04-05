@@ -149,7 +149,21 @@
 - [x] Trash system with configurable retention
 - [x] Settings page (trash retention, connected surfaces)
 
-**Deliverable:** A user can paste text, drag images/documents, or use manual entry in the web app. AI extracts actions (including from screenshots via vision). Users review, approve, and manage tasks — all with source traceability.
+**Epic 4.8: Workflows — named groups of ordered tasks**
+- [x] AI extraction groups sequential tasks into workflows (updated prompts for text + vision)
+- [x] `workflows` JSONB column on ExtractionRow, `ExtractedWorkflow` Pydantic model
+- [x] `approved_workflows` table + Alembic migration 005
+- [x] `workflow_id` + `workflow_order` on ApprovedTaskRow
+- [x] Review endpoint: approve/reject workflows as a unit, creates workflow + ordered tasks
+- [x] GET /workflows, GET /workflows/{id}, PATCH /workflows/{id} endpoints
+- [x] Workflow auto-completion when all steps done, auto-reopen on uncomplete
+- [x] ReviewPanel: workflow cards with numbered steps, inline editing, ↑/↓ reorder
+- [x] Tasks page: workflow groups with progress bars, step checkboxes, standalone tasks below
+- [x] Manual capture: workflow builder in manual mode
+- [x] Due date sanitization: gracefully handle non-ISO dates from AI (e.g. "Thursday")
+- [x] 7 workflow-specific backend tests
+
+**Deliverable:** A user can paste text, drag images/documents, or use manual entry in the web app. AI extracts actions and groups sequential steps into workflows. Users review, approve (per-workflow or individually), and manage tasks with progress tracking — all with source traceability.
 
 ---
 

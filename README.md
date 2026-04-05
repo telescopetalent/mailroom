@@ -34,10 +34,12 @@ Mailroom is a routing layer first and an AI action engine second.
 - **Text capture** — paste text, AI extracts tasks/actions
 - **Image/screenshot capture** — drag or paste a screenshot (email, Slack thread, tweet, document), Claude Vision reads it and extracts actions
 - **Document capture** — drag a PDF or DOCX, text is extracted server-side then analyzed by AI
-- **Manual capture** — structured form for entering tasks, next steps, blockers, follow-ups directly
+- **Manual capture** — structured form for entering tasks, workflows, next steps, blockers, follow-ups
 - **AI/Manual toggle** — switch between AI extraction and manual entry
-- Review and approve/reject extracted items
-- Tasks page with open/completed sections
+- **Workflows** — AI groups sequential tasks into named workflows (e.g. "Launch website" with 4 ordered steps). Approve/reject workflows as a unit. Steps are editable and reorderable during review.
+- Review and approve/reject extracted items inline from the dashboard
+- Tasks page with workflow groups (progress bars, step checkboxes) and standalone tasks
+- Workflow auto-completion when all steps are done, auto-reopen on uncomplete
 - Trash system with configurable retention
 - Settings page for trash retention and connected surfaces
 

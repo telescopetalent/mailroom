@@ -40,6 +40,7 @@ backend/app/
 │   ├── captures.py          # POST /captures, GET /captures, etc.
 │   ├── reviews.py           # Review workflow endpoints
 │   ├── tasks.py             # Approved task endpoints
+│   ├── workflows.py         # Workflow CRUD + auto-completion
 │   ├── webhooks.py          # Inbound webhooks (email, Slack)
 │   └── health.py            # Health check
 ├── core/
@@ -202,8 +203,20 @@ extractions
   follow_ups      JSONB
   priority        TEXT (enum: high, medium, low, none)
   source_refs     JSONB
+  workflows       JSONB (array of {name, description, steps[]})
   model_provider  TEXT
   model_id        TEXT
+  created_at      TIMESTAMP
+
+approved_workflows
+  id              UUID PK
+  workspace_id    UUID FK → workspaces
+  capture_id      UUID FK → captures (SET NULL on delete)
+  extraction_id   UUID FK → extractions (SET NULL on delete)
+  name            TEXT
+  description     TEXT
+  status          TEXT (enum: open, completed)
+  approved_at     TIMESTAMP
   created_at      TIMESTAMP
 
 approved_tasks
@@ -211,6 +224,8 @@ approved_tasks
   extraction_id   UUID FK → extractions
   capture_id      UUID FK → captures
   workspace_id    UUID FK → workspaces
+  workflow_id     UUID FK → approved_workflows (SET NULL on delete, nullable)
+  workflow_order  INTEGER (nullable — position within workflow)
   title           TEXT
   description     TEXT
   owner           TEXT
