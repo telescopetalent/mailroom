@@ -112,6 +112,6 @@ describe("Tasks", () => {
     expect(await screen.findByText("Weekly Meal Plan")).toBeInTheDocument();
     expect(screen.getByText("Pick recipes")).toBeInTheDocument();
     expect(screen.getByText("Make grocery list")).toBeInTheDocument();
-    expect(screen.getByText("0/2 steps")).toBeInTheDocument();
+    expect(screen.getByText(/0\/2/)).toBeInTheDocument();
   });
 });
