@@ -227,3 +227,61 @@ def update_task(
         wf_name = wf.name if wf else None
 
     return _task_to_response(task, source, wf_name, db)
+
+
+@router.post("/{task_id}/subtasks/{subtask_index}/toggle")
+def toggle_subtask(
+    task_id: UUID,
+    subtask_index: int,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Toggle a sub-task's completed status. Auto-completes parent if all sub-tasks done."""
+    task = (
+        db.query(ApprovedTaskRow)
+        .filter(
+            ApprovedTaskRow.id == task_id,
+            ApprovedTaskRow.workspace_id == current_user["workspace_id"],
+        )
+        .first()
+    )
+    if not task:
+        raise NotFoundError("Task")
+
+    source_ref = dict(task.source_ref or {})
+    sub_tasks = list(source_ref.get("sub_tasks", []))
+    if subtask_index < 0 or subtask_index >= len(sub_tasks):
+        from app.core.exceptions import ValidationError
+        raise ValidationError("Invalid sub-task index")
+
+    sub_tasks[subtask_index] = {
+        **sub_tasks[subtask_index],
+        "completed": not sub_tasks[subtask_index].get("completed", False),
+    }
+    source_ref["sub_tasks"] = sub_tasks
+    task.source_ref = source_ref
+
+    # Auto-complete parent if all sub-tasks done
+    all_done = all(st.get("completed") for st in sub_tasks)
+    if all_done and sub_tasks and task.status != "completed":
+        task.status = "completed"
+    elif not all_done and task.status == "completed":
+        task.status = "open"
+
+    db.commit()
+    db.refresh(task)
+
+    # Auto-complete/reopen parent workflow
+    if task.workflow_id:
+        siblings = db.query(ApprovedTaskRow).filter(ApprovedTaskRow.workflow_id == task.workflow_id).all()
+        wf_all_done = all(s.status == "completed" for s in siblings)
+        wf = db.query(ApprovedWorkflowRow).filter(ApprovedWorkflowRow.id == task.workflow_id).first()
+        if wf:
+            if wf_all_done and wf.status != "completed":
+                wf.status = "completed"
+                db.commit()
+            elif not wf_all_done and wf.status == "completed":
+                wf.status = "open"
+                db.commit()
+
+    return {"status": "ok", "sub_tasks": sub_tasks, "task_status": task.status}

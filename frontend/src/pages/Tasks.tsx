@@ -45,6 +45,11 @@ interface TaskList {
   pagination: { total_count: number };
 }
 
+interface SubTask {
+  title: string;
+  completed: boolean;
+}
+
 interface WorkflowTask {
   id: string;
   title: string;
@@ -54,6 +59,7 @@ interface WorkflowTask {
   priority: string;
   workflow_order: number;
   depends_on_prior?: boolean;
+  sub_tasks?: SubTask[];
 }
 
 interface Workflow {
@@ -70,7 +76,7 @@ interface WorkflowList {
   pagination: { total_count: number };
 }
 
-function SortableStep({ step, index, onToggle, onSelect, isLocked, showDivider }: { step: WorkflowTask; index: number; onToggle: () => void; onSelect: () => void; isLocked?: boolean; showDivider?: boolean }) {
+function SortableStep({ step, index, onToggle, onSelect, isLocked, showDivider, onToggleSubtask }: { step: WorkflowTask; index: number; onToggle: () => void; onSelect: () => void; isLocked?: boolean; showDivider?: boolean; onToggleSubtask?: (subtaskIndex: number) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
 
   const style = {
@@ -140,6 +146,36 @@ function SortableStep({ step, index, onToggle, onSelect, isLocked, showDivider }
       </span>
       {step.owner && <span style={{ color: "#888", fontSize: "0.72rem" }}>{step.owner}</span>}
     </div>
+    {/* Sub-tasks */}
+    {step.sub_tasks && step.sub_tasks.length > 0 && !isLocked && (
+      <div style={{ marginLeft: "3.5rem", padding: "0.2rem 0 0.3rem" }}>
+        {step.sub_tasks.map((st, sti) => (
+          <div
+            key={sti}
+            style={{
+              display: "flex", alignItems: "center", gap: "0.4rem",
+              padding: "0.15rem 0", fontSize: "0.82rem",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={st.completed}
+              onChange={() => onToggleSubtask?.(sti)}
+              style={{ width: 14, height: 14 }}
+            />
+            <span style={{
+              textDecoration: st.completed ? "line-through" : "none",
+              color: st.completed ? "#bbb" : "#666",
+            }}>
+              {st.title}
+            </span>
+          </div>
+        ))}
+        <div style={{ fontSize: "0.7rem", color: "#bbb", marginTop: "0.15rem" }}>
+          {step.sub_tasks.filter((s) => s.completed).length}/{step.sub_tasks.length} done
+        </div>
+      </div>
+    )}
     </>
   );
 }
@@ -218,6 +254,16 @@ export default function Tasks() {
     const [moved] = reordered.splice(oldIndex, 1);
     reordered.splice(newIndex, 0, moved);
     reorderSteps(wf.id, reordered.map((t) => t.id));
+  };
+
+  const toggleSubtask = async (taskId: string, subtaskIndex: number) => {
+    try {
+      await api(`/tasks/${taskId}/subtasks/${subtaskIndex}/toggle`, { method: "POST" });
+      loadAll();
+      if (showCompleted) loadCompleted();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Unknown error");
+    }
   };
 
   const toggleTaskStatus = async (task: Task | WorkflowTask) => {
@@ -412,6 +458,7 @@ export default function Tasks() {
                   onSelect={() => setSelectedTaskId(step.id)}
                   isLocked={isLocked}
                   showDivider={isDependentStep}
+                  onToggleSubtask={(sti) => toggleSubtask(step.id, sti)}
                 />
               );
             })}

@@ -14,6 +14,7 @@ from app.core.exceptions import NotFoundError
 from app.db.models import ApprovedTaskRow, ApprovedWorkflowRow
 from app.models.api_schemas import (
     PaginationMeta,
+    SubTaskResponse,
     UpdateWorkflowRequest,
     WorkflowListResponse,
     WorkflowResponse,
@@ -42,6 +43,10 @@ def _workflow_to_response(workflow: ApprovedWorkflowRow, tasks: list[ApprovedTas
                 status=t.status,
                 workflow_order=t.workflow_order or 0,
                 depends_on_prior=bool((t.source_ref or {}).get("depends_on_prior")),
+                sub_tasks=[
+                    SubTaskResponse(title=st["title"], completed=st.get("completed", False))
+                    for st in (t.source_ref or {}).get("sub_tasks", [])
+                ],
             )
             for t in sorted(tasks, key=lambda t: t.workflow_order or 0)
         ],

@@ -22,8 +22,9 @@ Return a JSON object with these fields:
 - "workflows": Array of workflows — use this when multiple tasks form a logical sequence toward a goal. Each workflow is an object with:
   - "name": Short name for the workflow (e.g. "Weekly meal plan", "Deploy release")
   - "description": Brief description of the goal (optional)
-  - "steps": Array of ordered task objects with (title, description, owner, due_date, priority, depends_on_prior)
+  - "steps": Array of ordered task objects with (title, description, owner, due_date, priority, depends_on_prior, sub_tasks)
     - depends_on_prior: boolean — set to true ONLY for steps that explicitly depend on all prior steps completing first (e.g. "update org chart once hiring is complete"). Most steps should be false.
+    - sub_tasks: Array of strings — granular checklist items within a step. Break down each step into its component actions whenever possible (e.g. "Clean bathroom" → ["Scrub toilet", "Wipe counters", "Scrub shower", "Wipe mirrors"], "Write job description" → ["Define role requirements", "List responsibilities", "Set compensation range", "Post draft for review"]). Only leave empty if the step truly cannot be broken down further.
 - "next_steps": Array of strings — identified next actions that aren't full tasks
 - "owners": Array of strings — all people/roles mentioned as responsible
 - "due_dates": Array of objects with (description, date, source_text)

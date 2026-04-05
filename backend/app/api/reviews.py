@@ -192,7 +192,11 @@ def submit_review(
                     owner=step.get("owner"),
                     due_date=_parse_due_date(step.get("due_date")),
                     priority=step.get("priority", "none"),
-                    source_ref={**(capture.source_ref or {}), "depends_on_prior": bool(step.get("depends_on_prior"))},
+                    source_ref={
+                        **(capture.source_ref or {}),
+                        "depends_on_prior": bool(step.get("depends_on_prior")),
+                        "sub_tasks": [{"title": st, "completed": False} for st in (step.get("sub_tasks") or [])],
+                    },
                     approved_at=now,
                     created_at=now,
                 )

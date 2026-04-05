@@ -195,6 +195,13 @@ class UpdateTaskRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class SubTaskResponse(BaseModel):
+    """A sub-task within a workflow step."""
+
+    title: str
+    completed: bool = False
+
+
 class WorkflowTaskResponse(BaseModel):
     """A task within a workflow response."""
 
@@ -207,6 +214,7 @@ class WorkflowTaskResponse(BaseModel):
     status: TaskStatus
     workflow_order: int
     depends_on_prior: bool = False
+    sub_tasks: list[SubTaskResponse] = Field(default_factory=list)
 
 
 class WorkflowResponse(BaseModel):
