@@ -23,7 +23,29 @@ from app.models.api_schemas import (
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-def _task_to_response(task: ApprovedTaskRow, source: str, workflow_name: str | None = None) -> TaskResponse:
+def _task_to_response(
+    task: ApprovedTaskRow,
+    source: str,
+    workflow_name: str | None = None,
+    db: Session | None = None,
+) -> TaskResponse:
+    # Resolve dependency names and blocked status
+    blocked_by_wf_name = None
+    blocked_by_task_title = None
+    is_blocked = False
+
+    if db and task.blocked_by_workflow_id:
+        bwf = db.query(ApprovedWorkflowRow).filter(ApprovedWorkflowRow.id == task.blocked_by_workflow_id).first()
+        if bwf:
+            blocked_by_wf_name = bwf.name
+            is_blocked = bwf.status != "completed"
+
+    if db and task.blocked_by_task_id:
+        bt = db.query(ApprovedTaskRow).filter(ApprovedTaskRow.id == task.blocked_by_task_id).first()
+        if bt:
+            blocked_by_task_title = bt.title
+            is_blocked = is_blocked or bt.status != "completed"
+
     return TaskResponse(
         id=task.id,
         workspace_id=task.workspace_id,
@@ -36,6 +58,11 @@ def _task_to_response(task: ApprovedTaskRow, source: str, workflow_name: str | N
         reminder=task.reminder,
         location=task.location,
         notes=task.notes,
+        blocked_by_workflow_id=task.blocked_by_workflow_id,
+        blocked_by_workflow_name=blocked_by_wf_name,
+        blocked_by_task_id=task.blocked_by_task_id,
+        blocked_by_task_title=blocked_by_task_title,
+        is_blocked=is_blocked,
         status=task.status,
         source=source,
         source_ref=task.source_ref,
@@ -85,7 +112,7 @@ def list_tasks(
                 workflow_names[task.workflow_id] = wf.name if wf else None
             wf_name = workflow_names[task.workflow_id]
 
-        items.append(_task_to_response(task, source, wf_name))
+        items.append(_task_to_response(task, source, wf_name, db))
 
     return TaskListResponse(
         items=items,
@@ -124,7 +151,7 @@ def get_task(
         wf = db.query(ApprovedWorkflowRow).filter(ApprovedWorkflowRow.id == task.workflow_id).first()
         wf_name = wf.name if wf else None
 
-    return _task_to_response(task, source, wf_name)
+    return _task_to_response(task, source, wf_name, db)
 
 
 @router.patch("/{task_id}", response_model=TaskResponse)
@@ -166,6 +193,10 @@ def update_task(
         task.location = body.location
     if body.notes is not None:
         task.notes = body.notes
+    if body.blocked_by_workflow_id is not None:
+        task.blocked_by_workflow_id = body.blocked_by_workflow_id if str(body.blocked_by_workflow_id) != "00000000-0000-0000-0000-000000000000" else None
+    if body.blocked_by_task_id is not None:
+        task.blocked_by_task_id = body.blocked_by_task_id if str(body.blocked_by_task_id) != "00000000-0000-0000-0000-000000000000" else None
 
     db.commit()
     db.refresh(task)
@@ -195,4 +226,4 @@ def update_task(
         wf = db.query(ApprovedWorkflowRow).filter(ApprovedWorkflowRow.id == task.workflow_id).first()
         wf_name = wf.name if wf else None
 
-    return _task_to_response(task, source, wf_name)
+    return _task_to_response(task, source, wf_name, db)

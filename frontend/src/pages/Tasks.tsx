@@ -32,6 +32,11 @@ interface Task {
   workflow_id: string | null;
   workflow_name: string | null;
   workflow_order: number | null;
+  blocked_by_workflow_id: string | null;
+  blocked_by_workflow_name: string | null;
+  blocked_by_task_id: string | null;
+  blocked_by_task_title: string | null;
+  is_blocked: boolean;
   approved_at: string;
 }
 
@@ -232,16 +237,18 @@ export default function Tasks() {
           gap: "0.75rem",
           padding: "0.75rem 0",
           borderBottom: "1px solid #f0f0f0",
+          opacity: task.is_blocked ? 0.55 : 1,
         }}
       >
-        {/* Priority-colored circle */}
+        {/* Priority-colored circle (or lock if blocked) */}
         <button
-          onClick={() => toggleTaskStatus(task)}
+          onClick={() => !task.is_blocked && toggleTaskStatus(task)}
+          disabled={task.is_blocked}
           style={{
             width: 22,
             height: 22,
             borderRadius: "50%",
-            border: `2px solid ${circleColor}`,
+            border: `2px solid ${task.is_blocked ? "#e5e7eb" : circleColor}`,
             background: isCompleted ? circleColor : "transparent",
             cursor: "pointer",
             flexShrink: 0,
@@ -252,7 +259,11 @@ export default function Tasks() {
             padding: 0,
           }}
         >
-          {isCompleted && <span style={{ color: "white", fontSize: "0.65rem", lineHeight: 1 }}>{"\u2713"}</span>}
+          {task.is_blocked ? (
+            <span style={{ fontSize: "0.6rem", color: "#999" }}>{"\u{1F512}"}</span>
+          ) : isCompleted ? (
+            <span style={{ color: "white", fontSize: "0.65rem", lineHeight: 1 }}>{"\u2713"}</span>
+          ) : null}
         </button>
 
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -291,17 +302,25 @@ export default function Tasks() {
           </div>
 
           {/* Labels */}
-          {task.workflow_name && (
-            <div style={{ marginTop: "0.3rem" }}>
-              <span style={{
-                background: "#f3f0ff",
-                color: "#7c3aed",
-                padding: "0.1rem 0.45rem",
-                borderRadius: "4px",
-                fontSize: "0.72rem",
-              }}>
-                {task.workflow_name}
-              </span>
+          {/* Tags row */}
+          {(task.workflow_name || task.is_blocked) && (
+            <div style={{ display: "flex", gap: "0.35rem", marginTop: "0.3rem", flexWrap: "wrap", alignItems: "center" }}>
+              {task.workflow_name && (
+                <span style={{
+                  background: "#f3f0ff", color: "#7c3aed",
+                  padding: "0.1rem 0.45rem", borderRadius: "4px", fontSize: "0.72rem",
+                }}>
+                  {task.workflow_name}
+                </span>
+              )}
+              {task.is_blocked && (
+                <span style={{
+                  background: "#fef2f2", color: "#dc2626",
+                  padding: "0.1rem 0.45rem", borderRadius: "4px", fontSize: "0.72rem",
+                }}>
+                  {"\u{1F512}"} Blocked by: {task.blocked_by_workflow_name || task.blocked_by_task_title || "dependency"}
+                </span>
+              )}
             </div>
           )}
         </div>

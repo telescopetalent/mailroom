@@ -149,6 +149,11 @@ class TaskResponse(BaseModel):
     reminder: Optional[datetime] = None
     location: Optional[str] = None
     notes: Optional[str] = None
+    blocked_by_workflow_id: Optional[UUID] = None
+    blocked_by_workflow_name: Optional[str] = None
+    blocked_by_task_id: Optional[UUID] = None
+    blocked_by_task_title: Optional[str] = None
+    is_blocked: bool = False
     status: TaskStatus
     source: CaptureSource
     source_ref: Optional[dict[str, Any]] = None
@@ -181,6 +186,8 @@ class UpdateTaskRequest(BaseModel):
     reminder: Optional[datetime] = None
     location: Optional[str] = None
     notes: Optional[str] = None
+    blocked_by_workflow_id: Optional[UUID] = None
+    blocked_by_task_id: Optional[UUID] = None
 
 
 # ---------------------------------------------------------------------------

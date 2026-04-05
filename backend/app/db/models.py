@@ -249,6 +249,12 @@ class ApprovedTaskRow(Base):
     reminder = Column(DateTime, nullable=True)
     location = Column(String, nullable=True)
     notes = Column(Text, nullable=True)
+    blocked_by_workflow_id = Column(
+        UUID(as_uuid=True), ForeignKey("approved_workflows.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    blocked_by_task_id = Column(
+        UUID(as_uuid=True), ForeignKey("approved_tasks.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     source_ref = Column(JSONB, default=dict)
     status = Column(TASK_STATUS_ENUM, default="open", nullable=False)
     approved_at = Column(DateTime, default=datetime.utcnow, nullable=False)

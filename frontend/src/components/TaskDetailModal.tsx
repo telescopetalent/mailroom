@@ -13,6 +13,11 @@ interface TaskDetail {
   reminder: string | null;
   location: string | null;
   notes: string | null;
+  blocked_by_workflow_id: string | null;
+  blocked_by_workflow_name: string | null;
+  blocked_by_task_id: string | null;
+  blocked_by_task_title: string | null;
+  is_blocked: boolean;
   status: string;
   source: string;
   capture_id: string | null;
@@ -321,6 +326,35 @@ export default function TaskDetailModal({ taskId, onClose, onUpdate }: TaskDetai
             )}
           </div>
         </div>
+
+        {/* Blocked by */}
+        {(task.blocked_by_workflow_name || task.blocked_by_task_title) && (
+          <>
+            <div style={dividerStyle} />
+            <div style={metaRowStyle}>
+              <span style={metaIconStyle}>{"\u{1F512}"}</span>
+              <span style={metaLabelStyle}>Blocked by</span>
+              <div style={{ flex: 1 }}>
+                <span style={{
+                  background: task.is_blocked ? "#fef2f2" : "#dcfce7",
+                  color: task.is_blocked ? "#dc2626" : "#166534",
+                  padding: "0.15rem 0.5rem",
+                  borderRadius: "4px",
+                  fontSize: "0.82rem",
+                }}>
+                  {task.is_blocked ? "\u{1F534}" : "\u{1F7E2}"} {task.blocked_by_workflow_name || task.blocked_by_task_title}
+                </span>
+                {!task.is_blocked && <span style={{ color: "#888", fontSize: "0.78rem", marginLeft: "0.5rem" }}>completed</span>}
+                <button
+                  onClick={() => saveField("blocked_by_workflow_id", "00000000-0000-0000-0000-000000000000")}
+                  style={{ marginLeft: "0.5rem", background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: "0.75rem" }}
+                >
+                  remove
+                </button>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Workflow info */}
         {task.workflow_name && (
