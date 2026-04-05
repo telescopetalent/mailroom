@@ -41,6 +41,7 @@ Mailroom is a routing layer first and an AI action engine second.
 - **Drag-and-drop reordering** — reorder workflow steps on both the Tasks page and during review
 - **Task detail modal** — Todoist-style slide-up modal with editable title, description, owner, due date, priority, labels, reminder, location, notes. Auto-saves on field change.
 - **Task dependencies** — tasks can be blocked by a workflow or another task. Blocked tasks show a lock icon and can't be completed until the dependency is done.
+- **Sub-tasks** — AI generates granular checklist items within each workflow step (e.g. "Clean bathroom" → scrub toilet, wipe counters, scrub shower, wipe mirrors). Checking off all sub-tasks auto-completes the parent step.
 - **Manual workflow builder** — lock/block toggle per step to create sequential dependencies manually
 - Review and approve/reject extracted items inline from the dashboard
 - Todoist-style capture cards and task rendering with priority-colored circles

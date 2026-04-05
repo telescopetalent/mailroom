@@ -167,6 +167,10 @@
 - [x] AI infers intermediate steps (e.g. "make hiring decision" between interviews and org chart update)
 - [x] Dependent tasks included as workflow steps (not standalone), single approval
 - [x] Manual workflow builder: lock/block toggle per step
+- [x] Sub-tasks: AI generates granular checklist items within workflow steps
+- [x] Sub-task toggle endpoint: POST /tasks/{id}/subtasks/{index}/toggle
+- [x] Auto-complete parent step when all sub-tasks checked off
+- [x] Sub-task checkboxes render in workflow steps on Tasks page
 - [x] 7 workflow-specific backend tests
 
 **Epic 4.9: Todoist-style UI polish**

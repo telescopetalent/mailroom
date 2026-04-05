@@ -237,7 +237,7 @@ approved_tasks
   notes           TEXT (nullable)
   blocked_by_workflow_id  UUID FK → approved_workflows (SET NULL on delete)
   blocked_by_task_id      UUID FK → approved_tasks (SET NULL on delete)
-  source_ref      JSONB (includes depends_on_prior boolean for workflow steps)
+  source_ref      JSONB (includes depends_on_prior boolean and sub_tasks [{title, completed}] for workflow steps)
   status          TEXT (enum: open, completed)
   approved_at     TIMESTAMP
   created_at      TIMESTAMP
