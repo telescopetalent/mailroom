@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     slack_signing_secret: str = ""
 
     # Rate limiting
-    rate_limit_per_minute: int = 60
+    rate_limit_per_minute: int = 120
 
     # Input limits
     max_content_length: int = 100_000
