@@ -36,8 +36,14 @@ Mailroom is a routing layer first and an AI action engine second.
 - **Document capture** — drag a PDF or DOCX, text is extracted server-side then analyzed by AI
 - **Manual capture** — structured form for entering tasks, workflows, next steps, blockers, follow-ups
 - **AI/Manual toggle** — switch between AI extraction and manual entry
-- **Workflows** — AI groups sequential tasks into named workflows (e.g. "Launch website" with 4 ordered steps). Approve/reject workflows as a unit. Steps are editable and reorderable during review.
+- **Workflows** — AI groups sequential tasks into named workflows. Dependent follow-up tasks become the last step (e.g. "update org chart once hiring is complete" becomes step 6). AI infers missing intermediate steps. Approve workflows as a single unit.
+- **Sequential step locking** — workflow steps unlock one at a time as prior steps are completed. Dependent steps show a visual divider "unlocks after above."
+- **Drag-and-drop reordering** — reorder workflow steps on both the Tasks page and during review
+- **Task detail modal** — Todoist-style slide-up modal with editable title, description, owner, due date, priority, labels, reminder, location, notes. Auto-saves on field change.
+- **Task dependencies** — tasks can be blocked by a workflow or another task. Blocked tasks show a lock icon and can't be completed until the dependency is done.
+- **Manual workflow builder** — lock/block toggle per step to create sequential dependencies manually
 - Review and approve/reject extracted items inline from the dashboard
+- Todoist-style capture cards and task rendering with priority-colored circles
 - Tasks page with workflow groups (progress bars, step checkboxes) and standalone tasks
 - Workflow auto-completion when all steps are done, auto-reopen on uncomplete
 - Trash system with configurable retention

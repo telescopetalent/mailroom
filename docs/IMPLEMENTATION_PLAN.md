@@ -161,9 +161,27 @@
 - [x] Tasks page: workflow groups with progress bars, step checkboxes, standalone tasks below
 - [x] Manual capture: workflow builder in manual mode
 - [x] Due date sanitization: gracefully handle non-ISO dates from AI (e.g. "Thursday")
+- [x] Drag-and-drop step reordering (@dnd-kit) on Tasks page and ReviewPanel
+- [x] Sequential step locking: steps can't complete until prior steps are done
+- [x] `depends_on_prior` flag: AI marks dependent follow-up steps, visual divider "unlocks after above"
+- [x] AI infers intermediate steps (e.g. "make hiring decision" between interviews and org chart update)
+- [x] Dependent tasks included as workflow steps (not standalone), single approval
+- [x] Manual workflow builder: lock/block toggle per step
 - [x] 7 workflow-specific backend tests
 
-**Deliverable:** A user can paste text, drag images/documents, or use manual entry in the web app. AI extracts actions and groups sequential steps into workflows. Users review, approve (per-workflow or individually), and manage tasks with progress tracking — all with source traceability.
+**Epic 4.9: Todoist-style UI polish**
+- [x] Task detail modal: slide-up modal with all metadata fields (labels, reminder, location, notes)
+- [x] Auto-save on field change via PATCH /tasks/{id}
+- [x] New DB columns: labels (JSONB), reminder, location, notes + Alembic migration 006
+- [x] Priority-colored status circles (red/orange/blue/gray)
+- [x] Compact inline metadata with icons (calendar, link, owner)
+- [x] Todoist-style capture cards on Dashboard (rounded, shadow, tags)
+- [x] Task dependencies: blocked_by_workflow_id/blocked_by_task_id + migration 007
+- [x] Blocked tasks show lock icon, red tag, can't complete until dependency done
+- [x] Dependency picker dropdown in TaskDetailModal
+- [x] Rate limit bumped to 120 req/min
+
+**Deliverable:** A user can paste text, drag images/documents, or use manual entry in the web app. AI extracts actions, groups sequential steps into workflows with dependency tracking, and infers missing intermediate steps. Users review (with drag-and-drop reordering), approve, and manage tasks in a polished Todoist-style UI with detail modals, labels, dependencies, and sequential step locking — all with source traceability.
 
 ---
 

@@ -231,7 +231,13 @@ approved_tasks
   owner           TEXT
   due_date        DATE
   priority        TEXT
-  source_ref      JSONB
+  labels          JSONB (array of strings)
+  reminder        TIMESTAMP (nullable)
+  location        TEXT (nullable)
+  notes           TEXT (nullable)
+  blocked_by_workflow_id  UUID FK → approved_workflows (SET NULL on delete)
+  blocked_by_task_id      UUID FK → approved_tasks (SET NULL on delete)
+  source_ref      JSONB (includes depends_on_prior boolean for workflow steps)
   status          TEXT (enum: open, completed)
   approved_at     TIMESTAMP
   created_at      TIMESTAMP
