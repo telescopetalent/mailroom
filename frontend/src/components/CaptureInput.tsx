@@ -21,12 +21,12 @@ interface ManualFollowUp {
 interface ManualWorkflow {
   name: string;
   description: string;
-  steps: { title: string; owner: string }[];
+  steps: { title: string; owner: string; depends_on_prior: boolean }[];
 }
 
 const emptyTask = (): ManualTask => ({ title: "", owner: "", due_date: "", priority: "none" });
 const emptyFollowUp = (): ManualFollowUp => ({ description: "", owner: "", due_date: "" });
-const emptyWorkflow = (): ManualWorkflow => ({ name: "", description: "", steps: [{ title: "", owner: "" }] });
+const emptyWorkflow = (): ManualWorkflow => ({ name: "", description: "", steps: [{ title: "", owner: "", depends_on_prior: false }] });
 
 const inputStyle: React.CSSProperties = {
   padding: "0.4rem 0.5rem",
@@ -166,6 +166,7 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
         steps: w.steps.filter((s) => s.title.trim()).map((s) => ({
           title: s.title,
           owner: s.owner || undefined,
+          depends_on_prior: s.depends_on_prior || undefined,
         })),
       }));
 
@@ -497,54 +498,87 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
                 <div style={{ marginLeft: "0.5rem" }}>
                   <div style={{ ...labelStyle, fontSize: "0.75rem", marginBottom: "0.3rem" }}>Steps (in order):</div>
                   {w.steps.map((s, si) => (
-                    <div key={si} style={{ display: "flex", gap: "0.4rem", marginBottom: "0.3rem", alignItems: "center" }}>
-                      <span style={{ color: "#999", fontSize: "0.75rem", width: "1.2rem" }}>{si + 1}.</span>
-                      <input
-                        placeholder="Step title"
-                        value={s.title}
-                        onChange={(e) => {
-                          setManualWorkflows((prev) => prev.map((wf, idx) => {
-                            if (idx !== wi) return wf;
-                            const steps = [...wf.steps];
-                            steps[si] = { ...steps[si], title: e.target.value };
-                            return { ...wf, steps };
-                          }));
-                        }}
-                        style={{ ...inputStyle, flex: 1 }}
-                      />
-                      <input
-                        placeholder="Owner"
-                        value={s.owner}
-                        onChange={(e) => {
-                          setManualWorkflows((prev) => prev.map((wf, idx) => {
-                            if (idx !== wi) return wf;
-                            const steps = [...wf.steps];
-                            steps[si] = { ...steps[si], owner: e.target.value };
-                            return { ...wf, steps };
-                          }));
-                        }}
-                        style={{ ...inputStyle, width: "100px" }}
-                      />
-                      {w.steps.length > 1 && (
-                        <button
-                          onClick={() => {
+                    <div key={si}>
+                      {/* Divider for blocked steps */}
+                      {s.depends_on_prior && (
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.3rem 0 0.15rem", margin: "0.15rem 0" }}>
+                          <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
+                          <span style={{ fontSize: "0.65rem", color: "#999", whiteSpace: "nowrap" }}>{"\u{1F513}"} unlocks after above</span>
+                          <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
+                        </div>
+                      )}
+                      <div style={{ display: "flex", gap: "0.4rem", marginBottom: "0.3rem", alignItems: "center", opacity: s.depends_on_prior ? 0.7 : 1 }}>
+                        <span style={{ color: "#999", fontSize: "0.75rem", width: "1.2rem" }}>{si + 1}.</span>
+                        <input
+                          placeholder="Step title"
+                          value={s.title}
+                          onChange={(e) => {
                             setManualWorkflows((prev) => prev.map((wf, idx) => {
                               if (idx !== wi) return wf;
-                              return { ...wf, steps: wf.steps.filter((_, i) => i !== si) };
+                              const steps = [...wf.steps];
+                              steps[si] = { ...steps[si], title: e.target.value };
+                              return { ...wf, steps };
                             }));
                           }}
-                          style={{ fontSize: "0.7rem", color: "#999", cursor: "pointer", background: "none", border: "none" }}
-                        >
-                          x
-                        </button>
-                      )}
+                          style={{ ...inputStyle, flex: 1 }}
+                        />
+                        <input
+                          placeholder="Owner"
+                          value={s.owner}
+                          onChange={(e) => {
+                            setManualWorkflows((prev) => prev.map((wf, idx) => {
+                              if (idx !== wi) return wf;
+                              const steps = [...wf.steps];
+                              steps[si] = { ...steps[si], owner: e.target.value };
+                              return { ...wf, steps };
+                            }));
+                          }}
+                          style={{ ...inputStyle, width: "80px" }}
+                        />
+                        {/* Lock toggle */}
+                        {si > 0 && (
+                          <button
+                            onClick={() => {
+                              setManualWorkflows((prev) => prev.map((wf, idx) => {
+                                if (idx !== wi) return wf;
+                                const steps = [...wf.steps];
+                                steps[si] = { ...steps[si], depends_on_prior: !steps[si].depends_on_prior };
+                                return { ...wf, steps };
+                              }));
+                            }}
+                            title={s.depends_on_prior ? "Remove lock (allow anytime)" : "Lock until prior steps complete"}
+                            style={{
+                              fontSize: "0.75rem", padding: "0.15rem 0.3rem", cursor: "pointer",
+                              background: s.depends_on_prior ? "#fef2f2" : "#f3f4f6",
+                              color: s.depends_on_prior ? "#dc2626" : "#999",
+                              border: s.depends_on_prior ? "1px solid #fca5a5" : "1px solid #e5e7eb",
+                              borderRadius: "3px",
+                            }}
+                          >
+                            {s.depends_on_prior ? "\u{1F512}" : "\u{1F513}"}
+                          </button>
+                        )}
+                        {w.steps.length > 1 && (
+                          <button
+                            onClick={() => {
+                              setManualWorkflows((prev) => prev.map((wf, idx) => {
+                                if (idx !== wi) return wf;
+                                return { ...wf, steps: wf.steps.filter((_, i) => i !== si) };
+                              }));
+                            }}
+                            style={{ fontSize: "0.7rem", color: "#999", cursor: "pointer", background: "none", border: "none" }}
+                          >
+                            x
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                   <button
                     onClick={() => {
                       setManualWorkflows((prev) => prev.map((wf, idx) => {
                         if (idx !== wi) return wf;
-                        return { ...wf, steps: [...wf.steps, { title: "", owner: "" }] };
+                        return { ...wf, steps: [...wf.steps, { title: "", owner: "", depends_on_prior: false }] };
                       }));
                     }}
                     style={{ fontSize: "0.75rem", padding: "0.15rem 0.4rem", cursor: "pointer", marginTop: "0.2rem" }}
