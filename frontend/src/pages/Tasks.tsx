@@ -85,37 +85,38 @@ function SortableStep({ step, index, onToggle, onSelect }: { step: WorkflowTask;
       {/* Drag handle */}
       <span
         {...listeners}
-        style={{
-          cursor: "grab",
-          color: "#ccc",
-          fontSize: "0.9rem",
-          padding: "0 0.2rem",
-          userSelect: "none",
-          touchAction: "none",
-        }}
+        style={{ cursor: "grab", color: "#d1d5db", fontSize: "0.85rem", padding: "0 0.15rem", userSelect: "none", touchAction: "none" }}
         title="Drag to reorder"
       >
-        ⠿
+        &#x2807;
       </span>
-      <input
-        type="checkbox"
-        checked={step.status === "completed"}
-        onChange={onToggle}
-      />
-      <span style={{ color: "#999", fontSize: "0.75rem", width: "1.5rem", textAlign: "center" }}>
-        {index + 1}.
-      </span>
+      {/* Circle */}
+      <button
+        onClick={onToggle}
+        style={{
+          width: 18, height: 18, borderRadius: "50%",
+          border: `2px solid ${step.status === "completed" ? "#d1d5db" : "#d1d5db"}`,
+          background: step.status === "completed" ? "#d1d5db" : "transparent",
+          cursor: "pointer", flexShrink: 0, padding: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}
+      >
+        {step.status === "completed" && <span style={{ color: "white", fontSize: "0.55rem" }}>{"\u2713"}</span>}
+      </button>
+      <span style={{ color: "#aaa", fontSize: "0.75rem", width: "1.2rem", textAlign: "center", flexShrink: 0 }}>{index + 1}.</span>
       <span
         onClick={onSelect}
         style={{
           flex: 1,
           textDecoration: step.status === "completed" ? "line-through" : "none",
+          color: step.status === "completed" ? "#999" : "#1a1a1a",
           cursor: "pointer",
+          fontSize: "0.9rem",
         }}
       >
         {step.title}
       </span>
-      {step.owner && <span style={{ color: "#888", fontSize: "0.75rem" }}>{step.owner}</span>}
+      {step.owner && <span style={{ color: "#888", fontSize: "0.72rem" }}>{step.owner}</span>}
     </div>
   );
 }
@@ -211,49 +212,110 @@ export default function Tasks() {
     }
   };
 
-  const renderTask = (task: Task) => (
-    <div
-      key={task.id}
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: "0.75rem",
-        padding: "0.75rem 0",
-        borderBottom: "1px solid #eee",
-        opacity: task.status === "completed" ? 0.6 : 1,
-      }}
-    >
-      <input
-        type="checkbox"
-        checked={task.status === "completed"}
-        onChange={() => toggleTaskStatus(task)}
-        style={{ marginTop: "0.2rem" }}
-      />
-      <div style={{ flex: 1 }}>
-        <div
-          onClick={() => setSelectedTaskId(task.id)}
-          style={{ textDecoration: task.status === "completed" ? "line-through" : "none", cursor: "pointer" }}
+  const priorityCircleColor: Record<string, string> = {
+    high: "#dc2626",
+    medium: "#f59e0b",
+    low: "#3b82f6",
+    none: "#d1d5db",
+  };
+
+  const renderTask = (task: Task) => {
+    const circleColor = priorityCircleColor[task.priority] || "#d1d5db";
+    const isCompleted = task.status === "completed";
+
+    return (
+      <div
+        key={task.id}
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "0.75rem",
+          padding: "0.75rem 0",
+          borderBottom: "1px solid #f0f0f0",
+        }}
+      >
+        {/* Priority-colored circle */}
+        <button
+          onClick={() => toggleTaskStatus(task)}
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: "50%",
+            border: `2px solid ${circleColor}`,
+            background: isCompleted ? circleColor : "transparent",
+            cursor: "pointer",
+            flexShrink: 0,
+            marginTop: 2,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+          }}
         >
-          <strong>{task.title}</strong>
-        </div>
-        {task.description && (
-          <div style={{ color: "#666", fontSize: "0.85rem" }}>{task.description}</div>
-        )}
-        <div style={{ color: "#999", fontSize: "0.8rem", marginTop: "0.25rem" }}>
-          {task.owner && `Owner: ${task.owner}`}
-          {task.due_date && ` | Due: ${task.due_date}`}
-          {task.priority !== "none" && ` | Priority: ${task.priority}`}
-          {` | Source: ${task.source}`}
-          {" | "}
-          {task.capture_id ? (
-            <Link to={`/captures/${task.capture_id}`}>View capture</Link>
-          ) : (
-            <span style={{ color: "#ccc", fontStyle: "italic" }}>Source removed</span>
+          {isCompleted && <span style={{ color: "white", fontSize: "0.65rem", lineHeight: 1 }}>{"\u2713"}</span>}
+        </button>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Title */}
+          <div
+            onClick={() => setSelectedTaskId(task.id)}
+            style={{
+              fontWeight: 500,
+              fontSize: "0.95rem",
+              cursor: "pointer",
+              textDecoration: isCompleted ? "line-through" : "none",
+              color: isCompleted ? "#999" : "#1a1a1a",
+            }}
+          >
+            {task.title}
+          </div>
+
+          {/* Description */}
+          {task.description && (
+            <div style={{ color: "#888", fontSize: "0.82rem", marginTop: "0.15rem" }}>{task.description}</div>
+          )}
+
+          {/* Inline metadata row */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginTop: "0.3rem", fontSize: "0.78rem", color: "#7c3aed", flexWrap: "wrap" }}>
+            {task.owner && (
+              <span style={{ color: "#888" }}>{task.owner}</span>
+            )}
+            {task.due_date && (
+              <span>{"\u{1F4C5}"} {task.due_date}</span>
+            )}
+            {task.capture_id && (
+              <Link to={`/captures/${task.capture_id}`} style={{ color: "#7c3aed", textDecoration: "none" }}>
+                {"\u{1F517}"} source
+              </Link>
+            )}
+          </div>
+
+          {/* Labels */}
+          {task.workflow_name && (
+            <div style={{ marginTop: "0.3rem" }}>
+              <span style={{
+                background: "#f3f0ff",
+                color: "#7c3aed",
+                padding: "0.1rem 0.45rem",
+                borderRadius: "4px",
+                fontSize: "0.72rem",
+              }}>
+                {task.workflow_name}
+              </span>
+            </div>
           )}
         </div>
+
+        {/* Expand chevron */}
+        <span
+          onClick={() => setSelectedTaskId(task.id)}
+          style={{ color: "#ccc", cursor: "pointer", fontSize: "0.9rem", padding: "0.2rem", flexShrink: 0 }}
+        >
+          {"\u203A"}
+        </span>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderWorkflow = (wf: Workflow) => {
     const completedCount = wf.tasks.filter((t) => t.status === "completed").length;
@@ -265,29 +327,30 @@ export default function Tasks() {
         key={wf.id}
         style={{
           marginBottom: "1rem",
-          border: "1px solid #ddd",
-          borderRadius: "6px",
-          padding: "0.75rem",
+          border: "1px solid #eee",
+          borderRadius: "8px",
+          padding: "0.85rem",
           opacity: wf.status === "completed" ? 0.6 : 1,
+          background: "#fafafa",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "0.4rem" }}>
           <div>
-            <strong style={{ fontSize: "1rem" }}>{wf.name}</strong>
-            {wf.description && <div style={{ color: "#666", fontSize: "0.85rem" }}>{wf.description}</div>}
+            <div style={{ fontWeight: 600, fontSize: "0.95rem", color: "#1a1a1a" }}>{wf.name}</div>
+            {wf.description && <div style={{ color: "#888", fontSize: "0.82rem", marginTop: "0.1rem" }}>{wf.description}</div>}
           </div>
-          <span style={{ color: "#888", fontSize: "0.8rem", flexShrink: 0, marginLeft: "0.5rem" }}>
-            {completedCount}/{totalCount} steps
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexShrink: 0, marginLeft: "0.5rem" }}>
+            <span style={{ fontSize: "0.75rem", color: "#7c3aed" }}>{"\u{1F517}"} {completedCount}/{totalCount}</span>
+          </div>
         </div>
 
         {/* Progress bar */}
-        <div style={{ height: 4, background: "#e5e7eb", borderRadius: 2, marginBottom: "0.5rem" }}>
+        <div style={{ height: 3, background: "#e5e7eb", borderRadius: 2, marginBottom: "0.6rem" }}>
           <div
             style={{
               height: "100%",
               width: `${progress}%`,
-              background: progress === 100 ? "#22c55e" : "#2563eb",
+              background: progress === 100 ? "#22c55e" : "#7c3aed",
               borderRadius: 2,
               transition: "width 0.3s",
             }}
