@@ -91,6 +91,23 @@ export default function Tasks() {
     }
   }, [showCompleted]);
 
+  const moveStep = async (wf: Workflow, stepIndex: number, direction: "up" | "down") => {
+    const tasks = [...wf.tasks];
+    const newIndex = direction === "up" ? stepIndex - 1 : stepIndex + 1;
+    if (newIndex < 0 || newIndex >= tasks.length) return;
+    [tasks[stepIndex], tasks[newIndex]] = [tasks[newIndex], tasks[stepIndex]];
+    const taskIds = tasks.map((t) => t.id);
+    try {
+      await api(`/workflows/${wf.id}/reorder`, {
+        method: "POST",
+        body: JSON.stringify({ task_ids: taskIds }),
+      });
+      loadAll();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Unknown error");
+    }
+  };
+
   const toggleTaskStatus = async (task: Task | WorkflowTask) => {
     const newStatus = task.status === "open" ? "completed" : "open";
     try {
@@ -187,7 +204,7 @@ export default function Tasks() {
         </div>
 
         {/* Steps */}
-        {wf.tasks.map((step) => (
+        {wf.tasks.map((step, si) => (
           <div
             key={step.id}
             style={{
@@ -223,6 +240,20 @@ export default function Tasks() {
               {step.title}
             </span>
             {step.owner && <span style={{ color: "#888", fontSize: "0.75rem" }}>{step.owner}</span>}
+            <button
+              onClick={() => moveStep(wf, si, "up")}
+              disabled={si === 0}
+              style={{ fontSize: "0.7rem", padding: "0.15rem 0.3rem", cursor: si === 0 ? "default" : "pointer", opacity: si === 0 ? 0.3 : 1, border: "1px solid #ddd", borderRadius: "2px", background: "#fff" }}
+            >
+              ↑
+            </button>
+            <button
+              onClick={() => moveStep(wf, si, "down")}
+              disabled={si === wf.tasks.length - 1}
+              style={{ fontSize: "0.7rem", padding: "0.15rem 0.3rem", cursor: si === wf.tasks.length - 1 ? "default" : "pointer", opacity: si === wf.tasks.length - 1 ? 0.3 : 1, border: "1px solid #ddd", borderRadius: "2px", background: "#fff" }}
+            >
+              ↓
+            </button>
           </div>
         ))}
 

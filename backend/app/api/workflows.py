@@ -49,6 +49,28 @@ def _workflow_to_response(workflow: ApprovedWorkflowRow, tasks: list[ApprovedTas
     )
 
 
+def _get_workflow_with_tasks(db: Session, workflow_id: UUID, workspace_id) -> tuple:
+    """Fetch a workflow and its tasks, or raise NotFoundError."""
+    wf = (
+        db.query(ApprovedWorkflowRow)
+        .filter(
+            ApprovedWorkflowRow.id == workflow_id,
+            ApprovedWorkflowRow.workspace_id == workspace_id,
+        )
+        .first()
+    )
+    if not wf:
+        raise NotFoundError("Workflow")
+
+    tasks = (
+        db.query(ApprovedTaskRow)
+        .filter(ApprovedTaskRow.workflow_id == wf.id)
+        .order_by(ApprovedTaskRow.workflow_order)
+        .all()
+    )
+    return wf, tasks
+
+
 @router.get("", response_model=WorkflowListResponse)
 def list_workflows(
     page: int = Query(1, ge=1),
@@ -98,23 +120,7 @@ def get_workflow(
     db: Session = Depends(get_db),
 ):
     """Get a single workflow with its tasks."""
-    wf = (
-        db.query(ApprovedWorkflowRow)
-        .filter(
-            ApprovedWorkflowRow.id == workflow_id,
-            ApprovedWorkflowRow.workspace_id == current_user["workspace_id"],
-        )
-        .first()
-    )
-    if not wf:
-        raise NotFoundError("Workflow")
-
-    tasks = (
-        db.query(ApprovedTaskRow)
-        .filter(ApprovedTaskRow.workflow_id == wf.id)
-        .order_by(ApprovedTaskRow.workflow_order)
-        .all()
-    )
+    wf, tasks = _get_workflow_with_tasks(db, workflow_id, current_user["workspace_id"])
     return _workflow_to_response(wf, tasks)
 
 
@@ -126,16 +132,7 @@ def update_workflow(
     db: Session = Depends(get_db),
 ):
     """Update a workflow (name, status)."""
-    wf = (
-        db.query(ApprovedWorkflowRow)
-        .filter(
-            ApprovedWorkflowRow.id == workflow_id,
-            ApprovedWorkflowRow.workspace_id == current_user["workspace_id"],
-        )
-        .first()
-    )
-    if not wf:
-        raise NotFoundError("Workflow")
+    wf, tasks = _get_workflow_with_tasks(db, workflow_id, current_user["workspace_id"])
 
     if body.name is not None:
         wf.name = body.name
@@ -144,6 +141,37 @@ def update_workflow(
 
     db.commit()
     db.refresh(wf)
+
+    tasks = (
+        db.query(ApprovedTaskRow)
+        .filter(ApprovedTaskRow.workflow_id == wf.id)
+        .order_by(ApprovedTaskRow.workflow_order)
+        .all()
+    )
+    return _workflow_to_response(wf, tasks)
+
+
+@router.post("/{workflow_id}/reorder", response_model=WorkflowResponse)
+def reorder_workflow_steps(
+    workflow_id: UUID,
+    body: dict,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Reorder steps within a workflow. Body: {"task_ids": ["id1", "id2", ...]}"""
+    wf, _ = _get_workflow_with_tasks(db, workflow_id, current_user["workspace_id"])
+
+    task_ids = body.get("task_ids", [])
+    for order, tid in enumerate(task_ids):
+        task = (
+            db.query(ApprovedTaskRow)
+            .filter(ApprovedTaskRow.id == tid, ApprovedTaskRow.workflow_id == wf.id)
+            .first()
+        )
+        if task:
+            task.workflow_order = order
+
+    db.commit()
 
     tasks = (
         db.query(ApprovedTaskRow)
