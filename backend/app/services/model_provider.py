@@ -35,7 +35,8 @@ Return a JSON object with these fields:
 
 Workflow vs tasks rules:
 - If tasks must be done in order or work toward a shared goal, group them into a workflow
-- If a task is truly independent and standalone, put it in "tasks"
+- If a task depends on a workflow completing first (e.g. "update the org chart once hiring is complete"), include it as the LAST step of that workflow — do NOT put it in standalone "tasks". This way, the dependent task is part of the workflow and unlocks when the prior steps are done.
+- If a task is truly independent with no relationship to any workflow, put it in "tasks"
 - A single isolated task should NOT be a workflow
 - owner/due_date: only include if explicitly mentioned
 - priority: "high", "medium", "low", or "none"
@@ -69,7 +70,7 @@ Return a JSON object with these fields:
 - "priority": Overall priority: "high", "medium", "low", or "none"
 - "source_references": Array of objects with (source, url, description)
 
-Workflow vs tasks: Group sequential/related steps into workflows. Keep truly independent tasks separate.
+Workflow vs tasks: Group sequential/related steps into workflows. If a task depends on a workflow completing, include it as the last step of that workflow. Keep only truly independent tasks separate.
 
 Rules:
 - Only extract what is explicitly visible in the image(s)

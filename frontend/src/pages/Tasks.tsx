@@ -69,7 +69,7 @@ interface WorkflowList {
   pagination: { total_count: number };
 }
 
-function SortableStep({ step, index, onToggle, onSelect }: { step: WorkflowTask; index: number; onToggle: () => void; onSelect: () => void }) {
+function SortableStep({ step, index, onToggle, onSelect, isLocked }: { step: WorkflowTask; index: number; onToggle: () => void; onSelect: () => void; isLocked?: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
 
   const style = {
@@ -80,7 +80,7 @@ function SortableStep({ step, index, onToggle, onSelect }: { step: WorkflowTask;
     gap: "0.5rem",
     padding: "0.35rem 0",
     borderBottom: "1px solid #f3f4f6",
-    opacity: isDragging ? 0.5 : step.status === "completed" ? 0.6 : 1,
+    opacity: isDragging ? 0.5 : isLocked ? 0.45 : step.status === "completed" ? 0.6 : 1,
     background: isDragging ? "#f0f4ff" : "transparent",
     cursor: "default",
   };
@@ -95,18 +95,23 @@ function SortableStep({ step, index, onToggle, onSelect }: { step: WorkflowTask;
       >
         &#x2807;
       </span>
-      {/* Circle */}
+      {/* Circle — locked or normal */}
       <button
-        onClick={onToggle}
+        onClick={() => !isLocked && onToggle()}
+        disabled={isLocked}
         style={{
           width: 18, height: 18, borderRadius: "50%",
-          border: `2px solid ${step.status === "completed" ? "#d1d5db" : "#d1d5db"}`,
+          border: `2px solid ${isLocked ? "#e5e7eb" : step.status === "completed" ? "#d1d5db" : "#d1d5db"}`,
           background: step.status === "completed" ? "#d1d5db" : "transparent",
-          cursor: "pointer", flexShrink: 0, padding: 0,
+          cursor: isLocked ? "default" : "pointer", flexShrink: 0, padding: 0,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}
       >
-        {step.status === "completed" && <span style={{ color: "white", fontSize: "0.55rem" }}>{"\u2713"}</span>}
+        {isLocked ? (
+          <span style={{ fontSize: "0.5rem", color: "#bbb" }}>{"\u{1F512}"}</span>
+        ) : step.status === "completed" ? (
+          <span style={{ color: "white", fontSize: "0.55rem" }}>{"\u2713"}</span>
+        ) : null}
       </button>
       <span style={{ color: "#aaa", fontSize: "0.75rem", width: "1.2rem", textAlign: "center", flexShrink: 0 }}>{index + 1}.</span>
       <span
@@ -379,15 +384,22 @@ export default function Tasks() {
         {/* Steps — drag to reorder */}
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd(wf)}>
           <SortableContext items={wf.tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-            {wf.tasks.map((step, si) => (
-              <SortableStep
-                key={step.id}
-                step={step}
-                index={si}
-                onToggle={() => toggleTaskStatus(step)}
-                onSelect={() => setSelectedTaskId(step.id)}
-              />
-            ))}
+            {wf.tasks.map((step, si) => {
+              // A step is locked if any prior step is not completed
+              const priorSteps = wf.tasks.slice(0, si);
+              const isLocked = priorSteps.length > 0 && priorSteps.some((s) => s.status !== "completed");
+
+              return (
+                <SortableStep
+                  key={step.id}
+                  step={step}
+                  index={si}
+                  onToggle={() => toggleTaskStatus(step)}
+                  onSelect={() => setSelectedTaskId(step.id)}
+                  isLocked={isLocked}
+                />
+              );
+            })}
           </SortableContext>
         </DndContext>
 
