@@ -206,6 +206,7 @@ class WorkflowTaskResponse(BaseModel):
     priority: Priority
     status: TaskStatus
     workflow_order: int
+    depends_on_prior: bool = False
 
 
 class WorkflowResponse(BaseModel):

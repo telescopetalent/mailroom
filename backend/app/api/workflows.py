@@ -41,6 +41,7 @@ def _workflow_to_response(workflow: ApprovedWorkflowRow, tasks: list[ApprovedTas
                 priority=t.priority or "none",
                 status=t.status,
                 workflow_order=t.workflow_order or 0,
+                depends_on_prior=bool((t.source_ref or {}).get("depends_on_prior")),
             )
             for t in sorted(tasks, key=lambda t: t.workflow_order or 0)
         ],

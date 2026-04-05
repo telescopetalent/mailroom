@@ -53,6 +53,7 @@ interface WorkflowTask {
   status: string;
   priority: string;
   workflow_order: number;
+  depends_on_prior?: boolean;
 }
 
 interface Workflow {
@@ -69,7 +70,7 @@ interface WorkflowList {
   pagination: { total_count: number };
 }
 
-function SortableStep({ step, index, onToggle, onSelect, isLocked }: { step: WorkflowTask; index: number; onToggle: () => void; onSelect: () => void; isLocked?: boolean }) {
+function SortableStep({ step, index, onToggle, onSelect, isLocked, showDivider }: { step: WorkflowTask; index: number; onToggle: () => void; onSelect: () => void; isLocked?: boolean; showDivider?: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
 
   const style = {
@@ -86,6 +87,17 @@ function SortableStep({ step, index, onToggle, onSelect, isLocked }: { step: Wor
   };
 
   return (
+    <>
+    {showDivider && (
+      <div style={{
+        display: "flex", alignItems: "center", gap: "0.5rem",
+        padding: "0.5rem 0 0.25rem", margin: "0.25rem 0",
+      }}>
+        <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
+        <span style={{ fontSize: "0.7rem", color: "#999", whiteSpace: "nowrap" }}>{"\u{1F513}"} unlocks after above</span>
+        <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
+      </div>
+    )}
     <div ref={setNodeRef} style={style} {...attributes}>
       {/* Drag handle */}
       <span
@@ -128,6 +140,7 @@ function SortableStep({ step, index, onToggle, onSelect, isLocked }: { step: Wor
       </span>
       {step.owner && <span style={{ color: "#888", fontSize: "0.72rem" }}>{step.owner}</span>}
     </div>
+    </>
   );
 }
 
@@ -385,9 +398,10 @@ export default function Tasks() {
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd(wf)}>
           <SortableContext items={wf.tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
             {wf.tasks.map((step, si) => {
-              // A step is locked if any prior step is not completed
               const priorSteps = wf.tasks.slice(0, si);
               const isLocked = priorSteps.length > 0 && priorSteps.some((s) => s.status !== "completed");
+              // Show divider before dependent steps (from AI flag or last step heuristic)
+              const isDependentStep = (step as any).depends_on_prior === true;
 
               return (
                 <SortableStep
@@ -397,6 +411,7 @@ export default function Tasks() {
                   onToggle={() => toggleTaskStatus(step)}
                   onSelect={() => setSelectedTaskId(step.id)}
                   isLocked={isLocked}
+                  showDivider={isDependentStep}
                 />
               );
             })}
