@@ -43,8 +43,9 @@ Workflow vs tasks rules:
 - priority: "high", "medium", "low", or "none"
 
 General rules:
-- Only extract what is explicitly stated in the content
-- Do NOT invent owners, dates, or tasks that aren't mentioned
+- Extract what is stated in the content
+- You MAY infer obvious intermediate steps that are logically required between stated steps (e.g. if someone says "interview candidates, then update org chart" — infer "make hiring decision" between them)
+- Do NOT invent owners, dates, or priorities that aren't mentioned
 - If a field has no relevant data, use an empty array or null
 - Return valid JSON only, no markdown formatting
 
