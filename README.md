@@ -213,14 +213,16 @@ Without an API key, captures use the stub provider (returns a placeholder summar
 
 ## What's Built for Quality (Phase 6)
 
-- **46 backend tests** — pipeline, captures, reviews, tasks, webhooks, model provider (pytest + SQLite)
-- **7 frontend tests** — CaptureInput, Tasks page (Vitest + @testing-library/react)
+- **53 backend tests** — pipeline, captures, reviews, tasks, workflows, webhooks, model provider (pytest + SQLite)
+- **8 frontend tests** — CaptureInput, Tasks page (Vitest + @testing-library/react)
 - **Custom exceptions** — MailroomError hierarchy with structured JSON error responses
 - **Retry logic** — Anthropic API calls retry 3x with exponential backoff (2-30s) via tenacity
-- **Rate limiting** — 60 requests/min per user, in-memory sliding window
+- **Rate limiting** — 120 requests/min per user, in-memory sliding window
 - **Input validation** — Content length limits (100K chars), filename sanitization (path traversal prevention)
 - **Correlation IDs** — Request ID in middleware logs and available via contextvars
 - **Pipeline timing** — Per-stage and total duration logged
+- **N+1 query optimization** — Batch-loaded extractions and attachment counts on list endpoints
+- **7 Alembic migrations** — Full schema versioning
 
 ### Running Tests
 
@@ -236,27 +238,51 @@ cd frontend && npm test
 
 ## What Remains to Build
 
+### Infrastructure (Prerequisite for All Future Phases)
+Before any native surface can go live, the backend needs to be publicly deployed:
+1. **AWS account** — Create account, set up IAM
+2. **Deploy backend** — ECS Fargate or Lambda with FastAPI
+3. **Production database** — RDS PostgreSQL
+4. **File storage** — S3 bucket for attachments (swap `STORAGE_BACKEND=s3`)
+5. **Domain + SSL** — Register domain, CloudFront CDN for frontend
+6. **CI/CD** — GitHub Actions for automated tests + deploy
+7. **Wire email** — SES inbound → SNS → webhook endpoint
+8. **Wire Slack** — Slack app with signing secret → slash command endpoint
+9. **Environment management** — Staging vs production configs
+
 ### Phase 7 — Native Surfaces (Next)
-- **iPhone app** — SwiftUI capture-first app with camera, paste, voice input
-- **iOS share extension** — Capture from any app via the share sheet
-- **Apple Notes share flow** — Share from Notes directly
-- **Chrome extension** — Popup, right-click context menu, screenshot, bookmark capture
+Recommended build order (each builds on the API already in place):
+
+1. **Chrome extension** (fastest to build — uses existing web API)
+   - Popup capture form (paste text, screenshot current page)
+   - Right-click context menu: "Send to Mailroom"
+   - Selected text capture
+   - Badge showing pending review count
+   - Thin client → POST /api/v1/captures
+
+2. **iPhone app** (SwiftUI)
+   - Capture-first interface: paste, type, camera, voice
+   - Review workflow with approve/reject
+   - Task list with workflow groups
+   - Push notifications for new captures
+
+3. **iOS share extension**
+   - Share from any app (Safari, Notes, Mail) → POST /api/v1/captures
+   - Minimal UI: shows capture confirmation
+
+4. **Apple Notes share flow**
+   - Share note content directly to Mailroom
 
 ### Phase 8 — Ambient Capture
 - **Desktop app** — Menubar/dock drag-and-drop bin (Electron or Tauri)
 - Clipboard monitoring (opt-in)
 - Screenshot capture hotkey
+- File drop zone
 
 ### Phase 9 — Messaging Expansion (Future)
 - SMS, Telegram, Discord, WhatsApp connectors
 - Each follows the same connector pattern as email/Slack
-
-### Infrastructure (Not Yet Started)
-- AWS deployment (ECS/Lambda, RDS, S3, CloudFront)
-- CI/CD pipeline
-- Production PostgreSQL (RDS)
-- Domain and SSL
-- Environment management (staging, production)
+- Webhook-based: each platform pushes to a Mailroom endpoint
 
 ---
 

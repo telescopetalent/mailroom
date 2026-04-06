@@ -10,7 +10,8 @@
 | 4 | Core engine MVP | Capture pipeline + extraction + review workflow | Done |
 | 5 | Core external surfaces | Email and Slack connectors | Done |
 | 6 | Quality, trust, reliability | Testing, monitoring, error handling, edge cases | Done |
-| 7 | Native surfaces | iPhone app, iOS share extension, Apple Notes, Chrome extension | Next |
+| INF | Infrastructure | AWS deploy, domain, CI/CD, wire email + Slack | Next |
+| 7 | Native surfaces | Chrome extension, iPhone app, iOS share extension, Apple Notes | Planned |
 | 8 | Ambient capture | Desktop drag-and-drop bin | Planned |
 | 9 | Messaging expansion | SMS, Telegram, Discord, WhatsApp | Future |
 
@@ -258,11 +259,46 @@
 
 ---
 
+## Infrastructure (Prerequisite for Phase 7+)
+
+### Milestone: Backend publicly deployed, email + Slack live
+
+**Epic INF.1: AWS deployment**
+- [ ] AWS account + IAM setup
+- [ ] Deploy backend to ECS Fargate or Lambda
+- [ ] RDS PostgreSQL (production database)
+- [ ] S3 bucket for file attachments
+- [ ] Switch STORAGE_BACKEND=s3
+
+**Epic INF.2: Domain + CI/CD**
+- [ ] Register domain
+- [ ] SSL certificates
+- [ ] CloudFront CDN for frontend
+- [ ] GitHub Actions: run tests on PR, deploy on merge to main
+
+**Epic INF.3: Wire external surfaces**
+- [ ] SES inbound email → SNS → webhook endpoint (parse SNS envelope)
+- [ ] Slack app: signing secret verification, install to workspace
+- [ ] Environment management (staging vs production configs)
+
+**Deliverable:** Backend is publicly accessible. Email forwarding and Slack /mailroom command work in production.
+
+---
+
 ## Phase 7 — Low-Friction Native Surfaces
 
 ### Milestone: iPhone, iOS share extension, Apple Notes, Chrome extension
 
-**Epic 7.1: iPhone app**
+**Recommended build order:** Chrome extension → iPhone app → iOS share extension → Apple Notes
+
+**Epic 7.1: Chrome extension (fastest to build)**
+- [ ] Extension popup for quick capture (paste text, screenshot)
+- [ ] Right-click context menu: "Send to Mailroom"
+- [ ] Selected text capture
+- [ ] Badge showing pending review count
+- [ ] Thin client → POST /api/v1/captures with API key auth
+
+**Epic 7.2: iPhone app**
 - [ ] SwiftUI capture-first app
 - [ ] Camera, paste, voice note input
 - [ ] API client (shared with share extension)
@@ -273,16 +309,14 @@
 - [ ] Handle text, URLs, images, files from any app
 - [ ] Send to POST /api/v1/captures
 
-**Epic 7.3: Apple Notes share flow**
+**Epic 7.3: iOS share extension**
+- [ ] Share extension target
+- [ ] Handle text, URLs, images, files from any app
+- [ ] Send to POST /api/v1/captures
+
+**Epic 7.4: Apple Notes share flow**
 - [ ] Share extension support for Notes app
 - [ ] Parse shared note content
-
-**Epic 7.4: Chrome extension**
-- [ ] Extension popup for quick capture
-- [ ] Right-click context menu (send selected text, page)
-- [ ] Screenshot capture
-- [ ] Bookmark capture
-- [ ] Send to POST /api/v1/captures
 
 **Deliverable:** Users can capture from iPhone, any iOS app, Notes, and Chrome without opening the web app.
 
