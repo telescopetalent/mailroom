@@ -71,8 +71,8 @@ export default function Settings() {
       setRetentionDays(updated.trash_retention_days);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setSaving(false);
     }
@@ -89,8 +89,8 @@ export default function Settings() {
       });
       setNewExternalId("");
       loadConnections();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setAddingConnection(false);
     }
@@ -103,8 +103,8 @@ export default function Settings() {
         body: JSON.stringify({ is_active: !conn.is_active }),
       });
       loadConnections();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Unknown error");
     }
   };
 
@@ -113,8 +113,8 @@ export default function Settings() {
     try {
       await api(`/surface-connections/${id}`, { method: "DELETE" });
       loadConnections();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Unknown error");
     }
   };
 

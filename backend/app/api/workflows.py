@@ -55,7 +55,9 @@ def _workflow_to_response(workflow: ApprovedWorkflowRow, tasks: list[ApprovedTas
     )
 
 
-def _get_workflow_with_tasks(db: Session, workflow_id: UUID, workspace_id) -> tuple:
+def _get_workflow_with_tasks(
+    db: Session, workflow_id: UUID, workspace_id: UUID,
+) -> tuple[ApprovedWorkflowRow, list[ApprovedTaskRow]]:
     """Fetch a workflow and its tasks, or raise NotFoundError."""
     wf = (
         db.query(ApprovedWorkflowRow)

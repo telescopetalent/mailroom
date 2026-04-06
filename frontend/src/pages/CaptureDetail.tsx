@@ -10,7 +10,16 @@ interface CaptureData {
   normalized_text: string | null;
   status: string;
   captured_at: string;
-  extraction: any | null;
+  extraction: {
+    id: string;
+    summary: string | null;
+    tasks: { title: string; description?: string; owner?: string; due_date?: string; priority?: string }[];
+    workflows: { name: string; description?: string; steps: { title: string; description?: string; owner?: string; due_date?: string; priority?: string }[] }[];
+    next_steps: string[];
+    blockers: string[];
+    follow_ups: { description: string; owner?: string; due_date?: string }[];
+    priority: string;
+  } | null;
 }
 
 export default function CaptureDetail() {

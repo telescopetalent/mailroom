@@ -4,20 +4,22 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import uuid as uuid_mod
 from datetime import datetime
-from typing import List
+from io import BytesIO
+from typing import Dict, List, Optional, Sequence
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
-
-from app.core.exceptions import NotFoundError, ValidationError
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.connectors.web import WebConnector
 from app.core.auth import get_current_user
 from app.core.database import get_db
+from app.core.exceptions import NotFoundError, ValidationError
 from app.db.models import ApprovedTaskRow, AttachmentRow, CaptureRow, ExtractionRow
 from app.models.api_schemas import (
     CaptureListResponse,
@@ -33,11 +35,15 @@ from app.services.storage import get_storage
 router = APIRouter(prefix="/captures", tags=["captures"])
 
 
+# ---------------------------------------------------------------------------
+# Helper functions
+# ---------------------------------------------------------------------------
+
+
 def _sanitize_filename(filename: str | None) -> str:
     """Strip path components to prevent directory traversal."""
     if not filename:
         return "unnamed"
-    import os
     # Remove any path separators
     clean = os.path.basename(filename)
     # Remove leading dots to prevent hidden files
@@ -66,7 +72,11 @@ def _extraction_to_dict(extraction: ExtractionRow) -> dict:
     }
 
 
-def _capture_to_response(capture: CaptureRow, extraction: ExtractionRow | None, attachment_count: int) -> dict:
+def _capture_to_response(
+    capture: CaptureRow,
+    extraction: ExtractionRow | None,
+    attachment_count: int,
+) -> dict:
     """Convert DB rows to API response dict."""
     ext = _extraction_to_dict(extraction) if extraction else None
 
@@ -84,6 +94,47 @@ def _capture_to_response(capture: CaptureRow, extraction: ExtractionRow | None, 
         "extraction": ext,
         "attachment_count": attachment_count,
     }
+
+
+def _get_capture_metadata(
+    db: Session,
+    capture_ids: Sequence[UUID],
+) -> tuple[Dict[UUID, ExtractionRow], Dict[UUID, int]]:
+    """Batch-load extractions and attachment counts for a list of capture IDs.
+
+    Returns:
+        (extractions_by_capture_id, attachment_counts_by_capture_id)
+    """
+    if not capture_ids:
+        return {}, {}
+
+    # Batch-load extractions keyed by capture_id
+    extractions_map: Dict[UUID, ExtractionRow] = {}
+    extraction_rows = (
+        db.query(ExtractionRow)
+        .filter(ExtractionRow.capture_id.in_(capture_ids))
+        .all()
+    )
+    for ext in extraction_rows:
+        extractions_map[ext.capture_id] = ext
+
+    # Batch-load attachment counts using GROUP BY
+    att_counts_map: Dict[UUID, int] = {cid: 0 for cid in capture_ids}
+    att_rows = (
+        db.query(AttachmentRow.capture_id, func.count(AttachmentRow.id))
+        .filter(AttachmentRow.capture_id.in_(capture_ids))
+        .group_by(AttachmentRow.capture_id)
+        .all()
+    )
+    for capture_id, count in att_rows:
+        att_counts_map[capture_id] = count
+
+    return extractions_map, att_counts_map
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
 
 
 @router.post("", response_model=None, status_code=status.HTTP_201_CREATED)
@@ -151,7 +202,11 @@ def create_capture(
     db.refresh(capture)
     db.refresh(extraction)
 
-    attachment_count = db.query(AttachmentRow).filter(AttachmentRow.capture_id == capture.id).count()
+    attachment_count = (
+        db.query(AttachmentRow)
+        .filter(AttachmentRow.capture_id == capture.id)
+        .count()
+    )
 
     return _capture_to_response(capture, extraction, attachment_count)
 
@@ -186,8 +241,8 @@ def create_capture_with_files(
         raise HTTPException(status_code=400, detail=f"Maximum {MAX_FILES} files allowed")
 
     storage = get_storage()
-    file_keys = []
-    file_metas = []
+    file_keys: list[str] = []
+    file_metas: list[dict] = []
 
     for f in files:
         content_type = f.content_type or "application/octet-stream"
@@ -203,7 +258,6 @@ def create_capture_with_files(
 
         safe_name = _sanitize_filename(f.filename)
         key = f"{current_user['workspace_id']}/{uuid_mod.uuid4()}/{safe_name}"
-        from io import BytesIO
         storage.upload(key, BytesIO(file_data), content_type)
 
         file_keys.append(key)
@@ -236,7 +290,11 @@ def create_capture_with_files(
     db.refresh(capture)
     db.refresh(extraction)
 
-    attachment_count = db.query(AttachmentRow).filter(AttachmentRow.capture_id == capture.id).count()
+    attachment_count = (
+        db.query(AttachmentRow)
+        .filter(AttachmentRow.capture_id == capture.id)
+        .count()
+    )
     return _capture_to_response(capture, extraction, attachment_count)
 
 
@@ -260,11 +318,18 @@ def list_captures(
     total = query.count()
     captures = query.offset((page - 1) * page_size).limit(page_size).all()
 
-    items = []
-    for cap in captures:
-        ext = db.query(ExtractionRow).filter(ExtractionRow.capture_id == cap.id).first()
-        att_count = db.query(AttachmentRow).filter(AttachmentRow.capture_id == cap.id).count()
-        items.append(_capture_to_response(cap, ext, att_count))
+    # Batch-load extractions and attachment counts (eliminates N+1)
+    capture_ids = [cap.id for cap in captures]
+    extractions_map, att_counts_map = _get_capture_metadata(db, capture_ids)
+
+    items = [
+        _capture_to_response(
+            cap,
+            extractions_map.get(cap.id),
+            att_counts_map.get(cap.id, 0),
+        )
+        for cap in captures
+    ]
 
     return {
         "items": items,
@@ -302,11 +367,17 @@ def list_trashed_captures(
     total = query.count()
     captures = query.offset((page - 1) * page_size).limit(page_size).all()
 
+    # Batch-load extractions and attachment counts (eliminates N+1)
+    capture_ids = [cap.id for cap in captures]
+    extractions_map, att_counts_map = _get_capture_metadata(db, capture_ids)
+
     items = []
     for cap in captures:
-        ext = db.query(ExtractionRow).filter(ExtractionRow.capture_id == cap.id).first()
-        att_count = db.query(AttachmentRow).filter(AttachmentRow.capture_id == cap.id).count()
-        resp = _capture_to_response(cap, ext, att_count)
+        resp = _capture_to_response(
+            cap,
+            extractions_map.get(cap.id),
+            att_counts_map.get(cap.id, 0),
+        )
         resp["trashed_at"] = cap.trashed_at.isoformat() if cap.trashed_at else None
         resp["previous_status"] = cap.previous_status
         items.append(resp)

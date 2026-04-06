@@ -132,8 +132,8 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
       setText("");
       setFiles([]);
       onCaptureCreated();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setLoading(false);
     }
@@ -197,8 +197,8 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
       });
       resetManualForm();
       onCaptureCreated();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setLoading(false);
     }
