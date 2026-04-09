@@ -12,7 +12,7 @@ Mailroom is a routing layer first and an AI action engine second.
 
 ## Current Status
 
-**Phases 1–6 complete. Phase 7 in progress** (Chrome extension shipped). The platform has a working backend, frontend, AI extraction pipeline, Chrome extension, connectors for email and Slack (stubbed for local testing), and a full test suite with production hardening.
+**Phases 1–6 complete. Phase 7 done, Phase 8 done.** The platform has a working backend, frontend, AI extraction pipeline, Chrome extension, Mac desktop drag-and-drop app, connectors for email and Slack (stubbed for local testing), and a full test suite with production hardening.
 
 | Phase | Status |
 |-------|--------|
@@ -22,8 +22,8 @@ Mailroom is a routing layer first and an AI action engine second.
 | 4. Core engine MVP | Done |
 | 5. Email and Slack connectors | Done |
 | 6. Quality, trust, reliability | Done |
-| 7. Native surfaces | **In Progress** — Chrome extension done |
-| 8. Ambient capture (desktop drag-and-drop) | Planned |
+| 7. Native surfaces | Done — Chrome extension shipped |
+| 8. Ambient capture (desktop drag-and-drop) | Done — Mac desktop app shipped |
 | 9. Messaging expansion (SMS, Telegram, etc.) | Future |
 
 ---
@@ -59,6 +59,19 @@ Mailroom is a routing layer first and an AI action engine second.
 - **Badge feedback** — green checkmark on success, red "!" on failure
 - **Settings page** — configure API URL (defaults to localhost) and API key
 - Source: `chrome_extension` with page URL in source_ref
+
+### Mac Desktop App (Electron)
+- **Menubar tray icon** — click the M icon in macOS menubar to open the capture window
+- **Dock presence** — also appears in the dock; click dock icon to open centered window
+- **Drag-and-drop files** — drop images, PDFs, or DOCX files onto the drop zone
+- **Quick text capture** — type or paste text, click Capture to send
+- **Clipboard capture** — capture text or images from clipboard with one click
+- **Global hotkey** — `Cmd+Shift+M` captures clipboard contents from anywhere
+- **Native notifications** — macOS notifications on capture success/failure
+- **Dark/light mode** — auto-adapts to system appearance
+- **Settings** — configure API key inline via gear icon
+- Source: `desktop` with file metadata
+- Install: `cd clients/desktop && npm install && npm start`
 
 ### Email Capture (webhook, stubbed)
 - Register sender email addresses as surface connections
@@ -263,14 +276,14 @@ Before any native surface can go live, the backend needs to be publicly deployed
 8. **Wire Slack** — Slack app with signing secret → slash command endpoint
 9. **Environment management** — Staging vs production configs
 
-### Phase 7 — Native Surfaces (In Progress)
+### Phase 7 — Native Surfaces (Done)
 
 1. **Chrome extension** — **Done**
    - Popup capture (AI/Manual toggle), right-click context menus, auto-fills page info
    - Badge feedback, settings page, content script
    - Install: `chrome://extensions` → Developer mode → Load unpacked → `clients/chrome-extension/`
 
-2. **iPhone app** (SwiftUI) — Next
+2. **iPhone app** (SwiftUI) — Planned
    - Capture-first interface: paste, type, camera, voice
    - Review workflow with approve/reject
    - Task list with workflow groups
@@ -284,11 +297,16 @@ Before any native surface can go live, the backend needs to be publicly deployed
 4. **Apple Notes share flow** — Planned
    - Share note content directly to Mailroom
 
-### Phase 8 — Ambient Capture
-- **Desktop app** — Menubar/dock drag-and-drop bin (Electron or Tauri)
-- Clipboard monitoring (opt-in)
-- Screenshot capture hotkey
-- File drop zone
+### Phase 8 — Ambient Capture (Done)
+
+- **Desktop app** — **Done** — Electron menubar + dock app
+  - Menubar tray icon with dropdown capture window
+  - Drag-and-drop file capture (images, PDFs, DOCX)
+  - Quick text capture textarea
+  - Clipboard capture (text + images) via button or global hotkey (`Cmd+Shift+M`)
+  - macOS native notifications
+  - Dark/light mode auto-detection
+  - Install: `cd clients/desktop && npm install && npm start`
 
 ### Phase 9 — Messaging Expansion (Future)
 - SMS, Telegram, Discord, WhatsApp connectors
@@ -305,6 +323,7 @@ Before any native surface can go live, the backend needs to be publicly deployed
 | Backend | Python 3.9+ (FastAPI) |
 | Database | PostgreSQL + Alembic migrations |
 | Chrome Extension | Manifest V3 (vanilla JS) |
+| Desktop App | Electron 33 (Node.js) |
 | AI Models | Anthropic Claude (abstracted — Gemini ready) |
 | Cloud | AWS (planned) |
 

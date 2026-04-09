@@ -373,7 +373,39 @@ Features:
 - Chrome storage sync for API key and URL
 - Source: `chrome_extension` with page metadata in `source_ref`
 
-### 5.3 Future Client Surfaces
+### 5.3 Desktop App (Electron)
+
+The desktop app is a menubar + dock capture surface for macOS:
+
+```
+clients/desktop/
+├── package.json             # Electron 33, electron-store, form-data
+├── main.js                  # Main process: tray, window, IPC, shortcuts
+├── preload.js               # Context bridge (secure renderer-to-main IPC)
+├── renderer/
+│   ├── index.html           # Drop zone, text capture, clipboard button
+│   ├── styles.css           # Dark/light mode, macOS-native feel
+│   └── app.js               # Drag-and-drop, text capture, clipboard capture
+├── lib/
+│   ├── api.js               # API client (captureText, captureFiles, testConnection)
+│   └── config.js            # electron-store wrapper (apiUrl, apiKey, hotkey)
+└── assets/
+    ├── trayIconTemplate.png     # 22x22 macOS template image
+    └── trayIconTemplate@2x.png  # 44x44 Retina variant
+```
+
+Architecture:
+- **Native Tray** — `electron.Tray` with macOS template image (auto-adapts to dark/light menubar)
+- **BrowserWindow** — frameless, always-on-top dropdown positioned below tray icon
+- **Dual presence** — visible in both menubar tray and macOS dock
+- **Global shortcut** — `Cmd+Shift+M` captures clipboard contents from any app
+- **Context bridge** — `contextBridge.exposeInMainWorld()` for secure IPC (no `nodeIntegration`)
+- **Clipboard capture** — handles both text (`clipboard.readText()`) and images (`clipboard.readImage()` → temp PNG → upload → cleanup)
+- **File validation** — client-side checks against backend's allowed types and 10MB/5-file limits
+- **electron-store** — persistent settings (API key, server URL, hotkey)
+- Source: `desktop` with file metadata in `source_ref`
+
+### 5.4 Future Client Surfaces
 
 All thin clients follow the same pattern:
 1. Authenticate with API key or JWT

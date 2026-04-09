@@ -11,8 +11,8 @@
 | 5 | Core external surfaces | Email and Slack connectors | Done |
 | 6 | Quality, trust, reliability | Testing, monitoring, error handling, edge cases | Done |
 | INF | Infrastructure | AWS deploy, domain, CI/CD, wire email + Slack | Next |
-| 7 | Native surfaces | Chrome extension, iPhone app, iOS share extension, Apple Notes | **In Progress** |
-| 8 | Ambient capture | Desktop drag-and-drop bin | Planned |
+| 7 | Native surfaces | Chrome extension, iPhone app, iOS share extension, Apple Notes | Done (Chrome extension shipped) |
+| 8 | Ambient capture | Desktop drag-and-drop bin | Done (Mac desktop app shipped) |
 | 9 | Messaging expansion | SMS, Telegram, Discord, WhatsApp | Future |
 
 ---
@@ -330,14 +330,23 @@
 
 ### Milestone: Desktop menubar/dock bin
 
-**Epic 8.1: Desktop app**
-- [ ] Electron or Tauri app
-- [ ] Menubar/dock presence
-- [ ] Drag-and-drop file capture
-- [ ] Clipboard monitoring (opt-in)
-- [ ] Screenshot capture hotkey
+**Epic 8.1: Desktop app** ✅
+- [x] Electron app with native macOS Tray icon (template image, auto dark/light)
+- [x] Menubar tray dropdown + dock presence (dual surface)
+- [x] Drag-and-drop file capture (images, PDFs, DOCX) with client-side validation
+- [x] Quick text capture textarea
+- [x] Clipboard capture — text via `clipboard.readText()`, images via `clipboard.readImage()` → temp PNG → upload → cleanup
+- [x] Global hotkey `Cmd+Shift+M` for clipboard capture from any app
+- [x] macOS native notifications on capture success/failure
+- [x] Dark/light mode auto-detection via `prefers-color-scheme`
+- [x] Secure IPC via `contextBridge` + `ipcRenderer` (no nodeIntegration)
+- [x] Persistent settings via `electron-store` (API key, server URL, hotkey)
+- [x] `runCapture()` helper to deduplicate IPC handler pattern
+- [x] API client with file type validation and 10MB/5-file limits
+- [x] Source: `desktop` with file metadata in `source_ref`
+- [x] Install: `cd clients/desktop && npm install && npm start`
 
-**Deliverable:** Users can drag files or screenshots to a desktop bin for instant capture.
+**Deliverable:** Users can drag files, paste text, or use a global hotkey to capture from a macOS menubar/dock app.
 
 ---
 
