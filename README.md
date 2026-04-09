@@ -336,6 +336,7 @@ With the backend running, visit `http://localhost:8000/docs` for interactive API
 - [Product Requirements](docs/PRD.md)
 - [Engineering Design](docs/EDD.md)
 - [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
+- [Infrastructure Setup Guide](docs/INFRASTRUCTURE.md)
 
 ## License
 

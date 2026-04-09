@@ -261,6 +261,8 @@
 
 ## Infrastructure (Prerequisite for Phase 7+)
 
+> **Detailed step-by-step guide:** [docs/INFRASTRUCTURE.md](INFRASTRUCTURE.md)
+
 ### Milestone: Backend publicly deployed, email + Slack live
 
 **Epic INF.1: AWS deployment**
