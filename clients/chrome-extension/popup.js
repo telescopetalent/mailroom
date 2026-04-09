@@ -11,6 +11,11 @@ const statusEl = document.getElementById("status");
 const setupBanner = document.getElementById("setup-banner");
 const openOptions = document.getElementById("open-options");
 const modeButtons = document.querySelectorAll(".mode-btn");
+const aiFields = document.getElementById("ai-fields");
+const manualFields = document.getElementById("manual-fields");
+const manualSummary = document.getElementById("manual-summary");
+const manualTasks = document.getElementById("manual-tasks");
+const manualPriority = document.getElementById("manual-priority");
 
 let currentMode = "ai";
 
@@ -51,6 +56,15 @@ modeButtons.forEach((btn) => {
     modeButtons.forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     currentMode = btn.dataset.mode;
+
+    // Show/hide fields based on mode
+    if (currentMode === "ai") {
+      aiFields.style.display = "block";
+      manualFields.style.display = "none";
+    } else {
+      aiFields.style.display = "none";
+      manualFields.style.display = "block";
+    }
   });
 });
 
@@ -62,10 +76,20 @@ openOptions.addEventListener("click", (e) => {
 
 // --- Send capture ---
 sendBtn.addEventListener("click", async () => {
-  const text = captureText.value.trim();
-  if (!text) {
-    showStatus("Enter some content to capture.", "error");
-    return;
+  // Validate based on mode
+  if (currentMode === "ai") {
+    const text = captureText.value.trim();
+    if (!text) {
+      showStatus("Enter some content to capture.", "error");
+      return;
+    }
+  } else {
+    const summary = manualSummary.value.trim();
+    const tasks = manualTasks.value.trim();
+    if (!summary && !tasks) {
+      showStatus("Enter a summary or tasks.", "error");
+      return;
+    }
   }
 
   const { apiKey, apiUrl } = await chrome.storage.sync.get(["apiKey", "apiUrl"]);
@@ -82,13 +106,29 @@ sendBtn.addEventListener("click", async () => {
   try {
     const body = {
       source: "chrome_extension",
-      content_text: text,
       mode: currentMode,
       source_ref: {
         url: pageUrl.value,
         title: pageTitle.value,
       },
     };
+
+    if (currentMode === "ai") {
+      body.content_text = captureText.value.trim();
+    } else {
+      // Build manual extraction payload
+      const taskLines = manualTasks.value
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean);
+
+      body.content_text = manualSummary.value.trim() || taskLines.join(", ") || "Manual capture";
+      body.manual_extraction = {
+        summary: manualSummary.value.trim() || null,
+        tasks: taskLines.map((t) => ({ title: t })),
+        priority: manualPriority.value,
+      };
+    }
 
     const resp = await fetch(`${baseUrl}/api/v1/captures`, {
       method: "POST",
@@ -105,7 +145,12 @@ sendBtn.addEventListener("click", async () => {
     }
 
     showStatus("Captured! Check your Mailroom inbox.", "success");
+
+    // Clear fields
     captureText.value = "";
+    manualSummary.value = "";
+    manualTasks.value = "";
+    manualPriority.value = "none";
 
     // Update badge
     chrome.runtime.sendMessage({ type: "capture_sent" });

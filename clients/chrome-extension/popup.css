@@ -67,8 +67,16 @@ body {
   margin-bottom: 4px;
 }
 
+.field .hint {
+  font-weight: 400;
+  color: #999;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .field textarea,
-.field input[type="text"] {
+.field input[type="text"],
+.field select {
   width: 100%;
   padding: 8px 10px;
   border: 1px solid #ddd;
@@ -82,7 +90,8 @@ body {
 }
 
 .field textarea:focus,
-.field input[type="text"]:focus {
+.field input[type="text"]:focus,
+.field select:focus {
   outline: none;
   border-color: #111;
   background: #fff;

@@ -23,9 +23,33 @@
       </div>
     </div>
 
-    <div class="field">
-      <label for="capture-text">Content</label>
-      <textarea id="capture-text" rows="5" placeholder="Paste or type content to capture..."></textarea>
+    <!-- AI mode -->
+    <div id="ai-fields">
+      <div class="field">
+        <label for="capture-text">Content</label>
+        <textarea id="capture-text" rows="5" placeholder="Paste or type content to capture..."></textarea>
+      </div>
+    </div>
+
+    <!-- Manual mode -->
+    <div id="manual-fields" style="display: none;">
+      <div class="field">
+        <label for="manual-summary">Summary</label>
+        <input id="manual-summary" type="text" placeholder="Brief summary...">
+      </div>
+      <div class="field">
+        <label for="manual-tasks">Tasks <span class="hint">(one per line)</span></label>
+        <textarea id="manual-tasks" rows="3" placeholder="Task 1&#10;Task 2&#10;Task 3"></textarea>
+      </div>
+      <div class="field">
+        <label for="manual-priority">Priority</label>
+        <select id="manual-priority">
+          <option value="none">None</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+        </select>
+      </div>
     </div>
 
     <div class="field">
