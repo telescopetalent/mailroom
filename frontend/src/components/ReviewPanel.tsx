@@ -2,9 +2,6 @@ import { useState } from "react";
 import {
   DndContext,
   closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import {
@@ -14,43 +11,13 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { api } from "../api/client";
-
-interface WorkflowStep {
-  title: string;
-  description?: string;
-  owner?: string;
-  due_date?: string;
-  priority?: string;
-}
-
-interface Workflow {
-  name: string;
-  description?: string;
-  steps: WorkflowStep[];
-}
-
-interface Extraction {
-  id: string;
-  summary: string | null;
-  next_steps: string[];
-  tasks: { title: string; description?: string; owner?: string; due_date?: string; priority?: string }[];
-  workflows: Workflow[];
-  blockers: string[];
-  follow_ups: { description: string; owner?: string; due_date?: string }[];
-  priority: string;
-}
+import { useDndSensors } from "../hooks/useDndSensors";
+import type { Extraction, ReviewDecision } from "../types";
 
 interface ReviewPanelProps {
   captureId: string;
   extraction: Extraction;
   onReviewComplete: () => void;
-}
-
-interface Decision {
-  item_type: string;
-  item_index: number;
-  action: "approve" | "reject" | "edit";
-  edited_value?: Record<string, unknown>;
 }
 
 function SortableReviewStep({ id, index, step, isLast, onEditTitle }: {
@@ -118,9 +85,7 @@ export default function ReviewPanel({ captureId, extraction, onReviewComplete }:
     return workflowEdits[index] || (extraction.workflows || [])[index];
   };
 
-  const reviewSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-  );
+  const reviewSensors = useDndSensors();
 
   const handleStepDragEnd = (wfIndex: number) => (event: DragEndEvent) => {
     const { active, over } = event;
@@ -142,7 +107,7 @@ export default function ReviewPanel({ captureId, extraction, onReviewComplete }:
   };
 
   const handleSubmit = async () => {
-    const items: Decision[] = [];
+    const items: ReviewDecision[] = [];
     for (const [key, action] of Object.entries(decisions)) {
       if (!action) continue;
       const [type, indexStr] = key.split("-");

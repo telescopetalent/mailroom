@@ -7,7 +7,7 @@ surface is normalized into this format before entering the pipeline.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field

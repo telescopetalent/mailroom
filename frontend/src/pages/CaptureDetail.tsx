@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import ReviewPanel from "../components/ReviewPanel";
+import type { Extraction } from "../types";
 
 interface CaptureData {
   id: string;
@@ -10,16 +11,7 @@ interface CaptureData {
   normalized_text: string | null;
   status: string;
   captured_at: string;
-  extraction: {
-    id: string;
-    summary: string | null;
-    tasks: { title: string; description?: string; owner?: string; due_date?: string; priority?: string }[];
-    workflows: { name: string; description?: string; steps: { title: string; description?: string; owner?: string; due_date?: string; priority?: string }[] }[];
-    next_steps: string[];
-    blockers: string[];
-    follow_ups: { description: string; owner?: string; due_date?: string }[];
-    priority: string;
-  } | null;
+  extraction: Extraction | null;
 }
 
 export default function CaptureDetail() {

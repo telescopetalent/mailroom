@@ -10,7 +10,7 @@ from datetime import date, datetime
 from typing import Any, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 from .enums import (
     CaptureSource,
@@ -21,7 +21,7 @@ from .enums import (
     TaskStatus,
     WorkflowStatus,
 )
-from .extraction import Extraction, ExtractedTask, ExtractedWorkflow
+from .extraction import Extraction
 
 
 # ---------------------------------------------------------------------------

@@ -1,45 +1,14 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
-
-interface TaskDetail {
-  id: string;
-  title: string;
-  description: string | null;
-  owner: string | null;
-  due_date: string | null;
-  priority: string;
-  labels: string[];
-  reminder: string | null;
-  location: string | null;
-  notes: string | null;
-  blocked_by_workflow_id: string | null;
-  blocked_by_workflow_name: string | null;
-  blocked_by_task_id: string | null;
-  blocked_by_task_title: string | null;
-  is_blocked: boolean;
-  status: string;
-  source: string;
-  capture_id: string | null;
-  workflow_id: string | null;
-  workflow_name: string | null;
-  workflow_order: number | null;
-  approved_at: string;
-  created_at: string;
-}
+import { PRIORITY_COLORS } from "../constants";
+import type { TaskDetail } from "../types";
 
 interface TaskDetailModalProps {
   taskId: string;
   onClose: () => void;
   onUpdate: () => void;
 }
-
-const priorityColors: Record<string, string> = {
-  high: "#ef4444",
-  medium: "#f59e0b",
-  low: "#3b82f6",
-  none: "#d1d5db",
-};
 
 export default function TaskDetailModal({ taskId, onClose, onUpdate }: TaskDetailModalProps) {
   const [task, setTask] = useState<TaskDetail | null>(null);
@@ -70,7 +39,7 @@ export default function TaskDetailModal({ taskId, onClose, onUpdate }: TaskDetai
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const saveField = async (field: string, value: unknown) => {
+  const saveField = useCallback(async (field: string, value: unknown) => {
     if (!task) return;
     try {
       const updated = await api<TaskDetail>(`/tasks/${task.id}`, {
@@ -83,7 +52,7 @@ export default function TaskDetailModal({ taskId, onClose, onUpdate }: TaskDetai
       // Silently fail — field reverts on next fetch
     }
     setEditingField(null);
-  };
+  }, [task?.id, onUpdate]);
 
   const addLabel = () => {
     if (!task || !labelInput.trim()) return;
@@ -131,8 +100,8 @@ export default function TaskDetailModal({ taskId, onClose, onUpdate }: TaskDetai
               width: 24,
               height: 24,
               borderRadius: "50%",
-              border: `2px solid ${priorityColors[task.priority] || "#d1d5db"}`,
-              background: task.status === "completed" ? priorityColors[task.priority] || "#d1d5db" : "transparent",
+              border: `2px solid ${PRIORITY_COLORS[task.priority] || "#d1d5db"}`,
+              background: task.status === "completed" ? PRIORITY_COLORS[task.priority] || "#d1d5db" : "transparent",
               cursor: "pointer",
               flexShrink: 0,
               marginTop: 2,
@@ -214,7 +183,7 @@ export default function TaskDetailModal({ taskId, onClose, onUpdate }: TaskDetai
 
           {/* Priority */}
           <div style={metaRowStyle}>
-            <span style={{ ...metaIconStyle, color: priorityColors[task.priority] }}>{"\u{1F6A9}"}</span>
+            <span style={{ ...metaIconStyle, color: PRIORITY_COLORS[task.priority] }}>{"\u{1F6A9}"}</span>
             <span style={metaLabelStyle}>Priority</span>
             <select
               value={task.priority}

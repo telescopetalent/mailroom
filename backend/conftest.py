@@ -29,7 +29,7 @@ from app.core.config import settings
 settings.anthropic_api_key = ""
 settings.gemini_api_key = ""
 
-from app.main import app
+from app.main import app  # noqa: E402 — must import after settings override
 
 # Register UUID adapter for SQLite
 sqlite3.register_adapter(uuid.UUID, lambda u: str(u))

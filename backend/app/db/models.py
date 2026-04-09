@@ -11,6 +11,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -45,6 +46,9 @@ class WorkspaceRow(Base):
 
 class SurfaceConnectionRow(Base):
     __tablename__ = "surface_connections"
+    __table_args__ = (
+        Index("ix_surface_conn_lookup", "surface", "external_id", "is_active"),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     workspace_id = Column(
@@ -140,7 +144,7 @@ class CaptureRow(Base):
     content_type = Column(CONTENT_TYPE_ENUM, nullable=False)
     raw_content = Column(JSONB, default=dict)
     normalized_text = Column(Text)
-    status = Column(CAPTURE_STATUS_ENUM, default="pending", nullable=False)
+    status = Column(CAPTURE_STATUS_ENUM, default="pending", nullable=False, index=True)
     previous_status = Column(String, nullable=True)
     captured_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     trashed_at = Column(DateTime, nullable=True)
@@ -225,6 +229,10 @@ class ApprovedWorkflowRow(Base):
 
 class ApprovedTaskRow(Base):
     __tablename__ = "approved_tasks"
+    __table_args__ = (
+        Index("ix_task_workflow_order", "workflow_id", "workflow_order"),
+        Index("ix_task_workspace_status", "workspace_id", "status"),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     extraction_id = Column(

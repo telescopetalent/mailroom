@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import secrets
-from uuid import UUID
 
 from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer

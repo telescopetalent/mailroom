@@ -1,33 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { api, getApiKey, setApiKey } from "../api/client";
 import CaptureInput from "../components/CaptureInput";
 import ReviewPanel from "../components/ReviewPanel";
-
-interface Extraction {
-  id: string;
-  summary: string | null;
-  next_steps: string[];
-  tasks: { title: string; description?: string; owner?: string; due_date?: string; priority?: string }[];
-  workflows: { name: string; description?: string; steps: { title: string; owner?: string; due_date?: string; priority?: string }[] }[];
-  blockers: string[];
-  follow_ups: { description: string; owner?: string; due_date?: string }[];
-  priority: string;
-}
-
-interface CaptureItem {
-  id: string;
-  source: string;
-  content_type: string;
-  status: string;
-  captured_at: string;
-  normalized_text: string | null;
-  extraction: Extraction | null;
-}
-
-interface CaptureList {
-  items: CaptureItem[];
-  pagination: { total_count: number };
+import type { CaptureItem, CaptureList } from "../types";
 }
 
 const btnStyle: React.CSSProperties = {
@@ -48,13 +24,13 @@ export default function Dashboard() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loadingCaptures, setLoadingCaptures] = useState(false);
 
-  const loadCaptures = () => {
+  const loadCaptures = useCallback(() => {
     setLoadingCaptures(true);
     api<CaptureList>("/captures")
       .then((data) => setCaptures(data.items))
       .catch(() => {})
       .finally(() => setLoadingCaptures(false));
-  };
+  }, []);
 
   useEffect(() => {
     if (connected) {
@@ -63,22 +39,22 @@ export default function Dashboard() {
           setUser(u);
           loadCaptures();
         })
-        .catch((e) => {
-          setError(e.message);
+        .catch((e: unknown) => {
+          setError(e instanceof Error ? e.message : "Connection failed");
           setConnected(false);
         });
     }
-  }, [connected]);
+  }, [connected, loadCaptures]);
 
-  const trashCapture = async (id: string) => {
+  const trashCapture = useCallback(async (id: string) => {
     await api(`/captures/${id}/trash`, { method: "POST" });
     loadCaptures();
-  };
+  }, [loadCaptures]);
 
-  const reopenCapture = async (id: string) => {
+  const reopenCapture = useCallback(async (id: string) => {
     await api(`/captures/${id}/reopen`, { method: "POST" });
     loadCaptures();
-  };
+  }, [loadCaptures]);
 
   if (!connected) {
     return (

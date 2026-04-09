@@ -100,15 +100,23 @@ def list_workflows(
     total = query.count()
     workflows = query.offset((page - 1) * page_size).limit(page_size).all()
 
-    items = []
-    for wf in workflows:
-        tasks = (
-            db.query(ApprovedTaskRow)
-            .filter(ApprovedTaskRow.workflow_id == wf.id)
-            .order_by(ApprovedTaskRow.workflow_order)
-            .all()
-        )
-        items.append(_workflow_to_response(wf, tasks))
+    # Batch-load all tasks for paginated workflows (avoids N+1)
+    wf_ids = [wf.id for wf in workflows]
+    all_tasks = (
+        db.query(ApprovedTaskRow)
+        .filter(ApprovedTaskRow.workflow_id.in_(wf_ids))
+        .order_by(ApprovedTaskRow.workflow_order)
+        .all()
+    ) if wf_ids else []
+
+    tasks_by_wf: dict[str, list[ApprovedTaskRow]] = {}
+    for t in all_tasks:
+        tasks_by_wf.setdefault(str(t.workflow_id), []).append(t)
+
+    items = [
+        _workflow_to_response(wf, tasks_by_wf.get(str(wf.id), []))
+        for wf in workflows
+    ]
 
     return WorkflowListResponse(
         items=items,
@@ -149,13 +157,6 @@ def update_workflow(
 
     db.commit()
     db.refresh(wf)
-
-    tasks = (
-        db.query(ApprovedTaskRow)
-        .filter(ApprovedTaskRow.workflow_id == wf.id)
-        .order_by(ApprovedTaskRow.workflow_order)
-        .all()
-    )
     return _workflow_to_response(wf, tasks)
 
 

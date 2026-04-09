@@ -8,11 +8,10 @@ import os
 import uuid as uuid_mod
 from datetime import datetime
 from io import BytesIO
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Sequence
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
-from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -22,12 +21,8 @@ from app.core.database import get_db
 from app.core.exceptions import NotFoundError, ValidationError
 from app.db.models import ApprovedTaskRow, AttachmentRow, CaptureRow, ExtractionRow
 from app.models.api_schemas import (
-    CaptureListResponse,
-    CaptureResponse,
     CreateCaptureRequest,
-    PaginationMeta,
 )
-from app.models.extraction import Extraction
 from app.pipeline.orchestrator import run_pipeline
 from app.services.model_provider import get_model_provider
 from app.services.storage import get_storage
@@ -130,6 +125,31 @@ def _get_capture_metadata(
         att_counts_map[capture_id] = count
 
     return extractions_map, att_counts_map
+
+
+def _get_capture_or_404(
+    db: Session,
+    capture_id: UUID,
+    workspace_id: UUID,
+    *extra_filters,
+) -> CaptureRow:
+    """Fetch a capture by ID and workspace, or raise NotFoundError."""
+    query = db.query(CaptureRow).filter(
+        CaptureRow.id == capture_id,
+        CaptureRow.workspace_id == workspace_id,
+        *extra_filters,
+    )
+    capture = query.first()
+    if not capture:
+        raise NotFoundError("Capture")
+    return capture
+
+
+def _single_capture_response(db: Session, capture: CaptureRow) -> dict:
+    """Build a response dict for a single capture with its extraction + attachment count."""
+    ext = db.query(ExtractionRow).filter(ExtractionRow.capture_id == capture.id).first()
+    att_count = db.query(AttachmentRow).filter(AttachmentRow.capture_id == capture.id).count()
+    return _capture_to_response(capture, ext, att_count)
 
 
 # ---------------------------------------------------------------------------
@@ -431,21 +451,8 @@ def get_capture(
     db: Session = Depends(get_db),
 ):
     """Get a single capture with its extraction."""
-    capture = (
-        db.query(CaptureRow)
-        .filter(
-            CaptureRow.id == capture_id,
-            CaptureRow.workspace_id == current_user["workspace_id"],
-        )
-        .first()
-    )
-    if not capture:
-        raise NotFoundError("Capture")
-
-    extraction = db.query(ExtractionRow).filter(ExtractionRow.capture_id == capture.id).first()
-    att_count = db.query(AttachmentRow).filter(AttachmentRow.capture_id == capture.id).count()
-
-    return _capture_to_response(capture, extraction, att_count)
+    capture = _get_capture_or_404(db, capture_id, current_user["workspace_id"])
+    return _single_capture_response(db, capture)
 
 
 @router.post("/{capture_id}/trash", response_model=None)
@@ -455,16 +462,7 @@ def trash_capture(
     db: Session = Depends(get_db),
 ):
     """Move a capture to trash."""
-    capture = (
-        db.query(CaptureRow)
-        .filter(
-            CaptureRow.id == capture_id,
-            CaptureRow.workspace_id == current_user["workspace_id"],
-        )
-        .first()
-    )
-    if not capture:
-        raise NotFoundError("Capture")
+    capture = _get_capture_or_404(db, capture_id, current_user["workspace_id"])
     if capture.status == "trashed":
         raise ValidationError("Capture is already trashed")
 
@@ -473,10 +471,7 @@ def trash_capture(
     capture.trashed_at = datetime.utcnow()
     db.commit()
     db.refresh(capture)
-
-    ext = db.query(ExtractionRow).filter(ExtractionRow.capture_id == capture.id).first()
-    att_count = db.query(AttachmentRow).filter(AttachmentRow.capture_id == capture.id).count()
-    return _capture_to_response(capture, ext, att_count)
+    return _single_capture_response(db, capture)
 
 
 @router.post("/{capture_id}/restore", response_model=None)
@@ -486,27 +481,17 @@ def restore_capture(
     db: Session = Depends(get_db),
 ):
     """Restore a capture from trash."""
-    capture = (
-        db.query(CaptureRow)
-        .filter(
-            CaptureRow.id == capture_id,
-            CaptureRow.workspace_id == current_user["workspace_id"],
-            CaptureRow.status == "trashed",
-        )
-        .first()
+    capture = _get_capture_or_404(
+        db, capture_id, current_user["workspace_id"],
+        CaptureRow.status == "trashed",
     )
-    if not capture:
-        raise NotFoundError("Trashed capture")
 
     capture.status = capture.previous_status or "review"
     capture.previous_status = None
     capture.trashed_at = None
     db.commit()
     db.refresh(capture)
-
-    ext = db.query(ExtractionRow).filter(ExtractionRow.capture_id == capture.id).first()
-    att_count = db.query(AttachmentRow).filter(AttachmentRow.capture_id == capture.id).count()
-    return _capture_to_response(capture, ext, att_count)
+    return _single_capture_response(db, capture)
 
 
 @router.post("/{capture_id}/reopen", response_model=None)
@@ -516,26 +501,14 @@ def reopen_capture(
     db: Session = Depends(get_db),
 ):
     """Push an approved/rejected capture back to review status."""
-    capture = (
-        db.query(CaptureRow)
-        .filter(
-            CaptureRow.id == capture_id,
-            CaptureRow.workspace_id == current_user["workspace_id"],
-        )
-        .first()
-    )
-    if not capture:
-        raise NotFoundError("Capture")
+    capture = _get_capture_or_404(db, capture_id, current_user["workspace_id"])
     if capture.status not in ("approved", "rejected"):
         raise ValidationError("Only approved or rejected captures can be reopened")
 
     capture.status = "review"
     db.commit()
     db.refresh(capture)
-
-    ext = db.query(ExtractionRow).filter(ExtractionRow.capture_id == capture.id).first()
-    att_count = db.query(AttachmentRow).filter(AttachmentRow.capture_id == capture.id).count()
-    return _capture_to_response(capture, ext, att_count)
+    return _single_capture_response(db, capture)
 
 
 @router.delete("/{capture_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -545,17 +518,10 @@ def permanently_delete_capture(
     db: Session = Depends(get_db),
 ):
     """Permanently delete a trashed capture."""
-    capture = (
-        db.query(CaptureRow)
-        .filter(
-            CaptureRow.id == capture_id,
-            CaptureRow.workspace_id == current_user["workspace_id"],
-            CaptureRow.status == "trashed",
-        )
-        .first()
+    capture = _get_capture_or_404(
+        db, capture_id, current_user["workspace_id"],
+        CaptureRow.status == "trashed",
     )
-    if not capture:
-        raise NotFoundError("Trashed capture")
 
     # Orphan approved tasks — they survive capture deletion
     db.query(ApprovedTaskRow).filter(ApprovedTaskRow.capture_id == capture.id).update(

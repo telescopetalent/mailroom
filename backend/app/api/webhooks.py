@@ -28,7 +28,7 @@ def _lookup_connection(db: Session, surface: str, external_id: str) -> SurfaceCo
         .filter(
             SurfaceConnectionRow.surface == surface,
             SurfaceConnectionRow.external_id == external_id,
-            SurfaceConnectionRow.is_active == True,
+            SurfaceConnectionRow.is_active.is_(True),
         )
         .first()
     )
@@ -172,7 +172,7 @@ async def slack_webhook(
         logger.info("Slack capture created: %s", capture.id)
         return JSONResponse({
             "response_type": "ephemeral",
-            "text": f"Captured! Your content is being processed. Check Mailroom to review.",
+            "text": "Captured! Your content is being processed. Check Mailroom to review.",
         })
     except Exception:
         logger.exception("Slack webhook pipeline failed for team %s", team_id)

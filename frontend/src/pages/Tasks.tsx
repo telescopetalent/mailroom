@@ -1,80 +1,27 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo, memo } from "react";
 import { Link } from "react-router-dom";
 import {
   DndContext,
   closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { api } from "../api/client";
 import TaskDetailModal from "../components/TaskDetailModal";
-
-interface Task {
-  id: string;
-  title: string;
-  description: string | null;
-  owner: string | null;
-  due_date: string | null;
-  priority: string;
-  status: string;
-  source: string;
-  capture_id: string | null;
-  workflow_id: string | null;
-  workflow_name: string | null;
-  workflow_order: number | null;
-  blocked_by_workflow_id: string | null;
-  blocked_by_workflow_name: string | null;
-  blocked_by_task_id: string | null;
-  blocked_by_task_title: string | null;
-  is_blocked: boolean;
-  approved_at: string;
-}
-
-interface TaskList {
-  items: Task[];
-  pagination: { total_count: number };
-}
-
-interface SubTask {
-  title: string;
-  completed: boolean;
-}
-
-interface WorkflowTask {
-  id: string;
-  title: string;
-  description: string | null;
-  owner: string | null;
-  status: string;
-  priority: string;
-  workflow_order: number;
-  depends_on_prior?: boolean;
-  sub_tasks?: SubTask[];
-}
-
-interface Workflow {
-  id: string;
-  name: string;
-  description: string | null;
-  status: string;
-  capture_id: string | null;
-  tasks: WorkflowTask[];
-}
-
-interface WorkflowList {
-  items: Workflow[];
-  pagination: { total_count: number };
-}
+import { useDndSensors } from "../hooks/useDndSensors";
+import { PRIORITY_COLORS } from "../constants";
+import type {
+  Task,
+  TaskList,
+  WorkflowTask,
+  Workflow,
+  WorkflowList,
+} from "../types";
 
 function SortableStep({ step, index, onToggle, onSelect, isLocked, showDivider, onToggleSubtask }: { step: WorkflowTask; index: number; onToggle: () => void; onSelect: () => void; isLocked?: boolean; showDivider?: boolean; onToggleSubtask?: (subtaskIndex: number) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
@@ -237,10 +184,7 @@ export default function Tasks() {
     }
   };
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  const sensors = useDndSensors();
 
   const handleDragEnd = (wf: Workflow) => (event: DragEndEvent) => {
     const { active, over } = event;
@@ -281,15 +225,8 @@ export default function Tasks() {
     }
   };
 
-  const priorityCircleColor: Record<string, string> = {
-    high: "#dc2626",
-    medium: "#f59e0b",
-    low: "#3b82f6",
-    none: "#d1d5db",
-  };
-
   const renderTask = (task: Task) => {
-    const circleColor = priorityCircleColor[task.priority] || "#d1d5db";
+    const circleColor = PRIORITY_COLORS[task.priority] || "#d1d5db";
     const isCompleted = task.status === "completed";
 
     return (

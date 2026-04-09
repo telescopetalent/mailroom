@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -98,39 +98,26 @@ def _sync_workflow_status(db: Session, workflow_id: UUID) -> None:
 
 
 def _apply_task_updates(task: ApprovedTaskRow, body: UpdateTaskRequest) -> None:
-    """Apply all field assignments from *body* onto *task*."""
-    if body.title is not None:
-        task.title = body.title
-    if body.description is not None:
-        task.description = body.description
-    if body.status is not None:
-        task.status = body.status.value if hasattr(body.status, "value") else body.status
-    if body.owner is not None:
-        task.owner = body.owner
-    if body.due_date is not None:
-        task.due_date = body.due_date
-    if body.priority is not None:
-        task.priority = body.priority.value if hasattr(body.priority, "value") else body.priority
-    if body.labels is not None:
-        task.labels = body.labels
-    if body.reminder is not None:
-        task.reminder = body.reminder
-    if body.location is not None:
-        task.location = body.location
-    if body.notes is not None:
-        task.notes = body.notes
-    if body.blocked_by_workflow_id is not None:
-        task.blocked_by_workflow_id = (
-            body.blocked_by_workflow_id
-            if str(body.blocked_by_workflow_id) != NULL_UUID
-            else None
-        )
-    if body.blocked_by_task_id is not None:
-        task.blocked_by_task_id = (
-            body.blocked_by_task_id
-            if str(body.blocked_by_task_id) != NULL_UUID
-            else None
-        )
+    """Apply all non-None field assignments from *body* onto *task*."""
+    # Simple fields — copy directly if provided
+    _SIMPLE_FIELDS = ("title", "description", "owner", "due_date", "labels",
+                      "reminder", "location", "notes")
+    for field in _SIMPLE_FIELDS:
+        value = getattr(body, field)
+        if value is not None:
+            setattr(task, field, value)
+
+    # Enum fields — extract .value for SQLAlchemy compatibility
+    for field in ("status", "priority"):
+        value = getattr(body, field)
+        if value is not None:
+            setattr(task, field, value.value if hasattr(value, "value") else value)
+
+    # Nullable UUID fields — use NULL_UUID sentinel to clear
+    for field in ("blocked_by_workflow_id", "blocked_by_task_id"):
+        value = getattr(body, field)
+        if value is not None:
+            setattr(task, field, value if str(value) != NULL_UUID else None)
 
 
 def _task_to_response(
