@@ -12,7 +12,7 @@ Mailroom is a routing layer first and an AI action engine second.
 
 ## Current Status
 
-**Phases 1–6 complete.** The platform has a working backend, frontend, AI extraction pipeline, connectors for email and Slack (stubbed for local testing), and a full test suite with production hardening.
+**Phases 1–6 complete. Phase 7 in progress** (Chrome extension shipped). The platform has a working backend, frontend, AI extraction pipeline, Chrome extension, connectors for email and Slack (stubbed for local testing), and a full test suite with production hardening.
 
 | Phase | Status |
 |-------|--------|
@@ -22,7 +22,7 @@ Mailroom is a routing layer first and an AI action engine second.
 | 4. Core engine MVP | Done |
 | 5. Email and Slack connectors | Done |
 | 6. Quality, trust, reliability | Done |
-| 7. Native surfaces (iOS, Chrome extension) | Next |
+| 7. Native surfaces | **In Progress** — Chrome extension done |
 | 8. Ambient capture (desktop drag-and-drop) | Planned |
 | 9. Messaging expansion (SMS, Telegram, etc.) | Future |
 
@@ -49,6 +49,16 @@ Mailroom is a routing layer first and an AI action engine second.
 - Workflow auto-completion when all steps are done, auto-reopen on uncomplete
 - Trash system with configurable retention
 - Settings page for trash retention and connected surfaces
+
+### Chrome Extension (Manifest V3)
+- **Right-click capture** — select text on any page, right-click → "Send to Mailroom"
+- **Right-click page** — capture entire page title + URL
+- **Popup capture** — click extension icon, type or paste content, choose AI or Manual mode
+- **Auto-fill** — popup grabs current page URL, title, and any selected text automatically
+- **Context menus** — "Send to Mailroom" (selected text) and "Send page to Mailroom" (page)
+- **Badge feedback** — green checkmark on success, red "!" on failure
+- **Settings page** — configure API URL (defaults to localhost) and API key
+- Source: `chrome_extension` with page URL in source_ref
 
 ### Email Capture (webhook, stubbed)
 - Register sender email addresses as surface connections
@@ -221,7 +231,10 @@ Without an API key, captures use the stub provider (returns a placeholder summar
 - **Input validation** — Content length limits (100K chars), filename sanitization (path traversal prevention)
 - **Correlation IDs** — Request ID in middleware logs and available via contextvars
 - **Pipeline timing** — Per-stage and total duration logged
-- **N+1 query optimization** — Batch-loaded extractions and attachment counts on list endpoints
+- **N+1 query optimization** — Batch-loaded extractions, attachment counts, and workflow tasks on list endpoints
+- **Composite DB indexes** — Optimized queries for surface connections, task filtering, and workflow ordering
+- **Shared frontend types** — Centralized TypeScript interfaces, constants, and hooks (zero duplicate definitions)
+- **React performance** — useCallback, useMemo optimizations on event handlers and computed values
 - **7 Alembic migrations** — Full schema versioning
 
 ### Running Tests
@@ -250,27 +263,25 @@ Before any native surface can go live, the backend needs to be publicly deployed
 8. **Wire Slack** — Slack app with signing secret → slash command endpoint
 9. **Environment management** — Staging vs production configs
 
-### Phase 7 — Native Surfaces (Next)
-Recommended build order (each builds on the API already in place):
+### Phase 7 — Native Surfaces (In Progress)
 
-1. **Chrome extension** (fastest to build — uses existing web API)
-   - Popup capture form (paste text, screenshot current page)
-   - Right-click context menu: "Send to Mailroom"
-   - Selected text capture
-   - Badge showing pending review count
-   - Thin client → POST /api/v1/captures
+1. **Chrome extension** — **Done**
+   - Popup capture (AI/Manual toggle), right-click context menus, auto-fills page info
+   - Badge feedback, settings page, content script
+   - Install: `chrome://extensions` → Developer mode → Load unpacked → `clients/chrome-extension/`
 
-2. **iPhone app** (SwiftUI)
+2. **iPhone app** (SwiftUI) — Next
    - Capture-first interface: paste, type, camera, voice
    - Review workflow with approve/reject
    - Task list with workflow groups
    - Push notifications for new captures
+   - Requires Apple Developer account ($99/year)
 
-3. **iOS share extension**
+3. **iOS share extension** — Planned
    - Share from any app (Safari, Notes, Mail) → POST /api/v1/captures
    - Minimal UI: shows capture confirmation
 
-4. **Apple Notes share flow**
+4. **Apple Notes share flow** — Planned
    - Share note content directly to Mailroom
 
 ### Phase 8 — Ambient Capture
@@ -293,6 +304,7 @@ Recommended build order (each builds on the API already in place):
 | Frontend | React + TypeScript (Vite) |
 | Backend | Python 3.9+ (FastAPI) |
 | Database | PostgreSQL + Alembic migrations |
+| Chrome Extension | Manifest V3 (vanilla JS) |
 | AI Models | Anthropic Claude (abstracted — Gemini ready) |
 | Cloud | AWS (planned) |
 

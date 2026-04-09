@@ -328,22 +328,52 @@ The web app is one capture surface plus the primary review interface:
 ```
 frontend/src/
 ├── App.tsx
-├── api/                    # API client
+├── api/
+│   └── client.ts           # API client (fetch wrapper with auth)
 ├── components/
-│   ├── capture/            # Capture input (paste, upload)
-│   ├── review/             # Review workflow UI
-│   ├── tasks/              # Approved tasks list
-│   └── common/             # Shared UI components
-├── hooks/                  # React hooks
+│   ├── CaptureInput.tsx     # AI/Manual capture with file upload
+│   ├── ReviewPanel.tsx      # Review workflow with drag-and-drop
+│   └── TaskDetailModal.tsx  # Todoist-style slide-up task detail
+├── constants/
+│   └── index.ts             # Shared constants (PRIORITY_COLORS)
+├── hooks/
+│   └── useDndSensors.ts     # Shared @dnd-kit sensor config
 ├── pages/
-│   ├── Dashboard.tsx       # Capture + review feed
-│   ├── CaptureDetail.tsx   # Single capture + extraction
-│   └── Tasks.tsx           # Approved tasks
-├── types/                  # TypeScript types (mirror backend models)
-└── utils/
+│   ├── Dashboard.tsx        # Capture + review feed
+│   ├── CaptureDetail.tsx    # Single capture + extraction
+│   ├── Tasks.tsx            # Workflow groups + standalone tasks
+│   ├── Trash.tsx            # Trashed captures
+│   └── Settings.tsx         # Workspace settings
+├── types/
+│   └── index.ts             # Shared TypeScript types (Extraction, Task, Workflow, etc.)
+└── test/
+    ├── CaptureInput.test.tsx
+    └── Tasks.test.tsx
 ```
 
-### 5.2 Client Surfaces (Future)
+### 5.2 Chrome Extension (Manifest V3)
+
+The Chrome extension is a thin client for capturing content from any webpage:
+
+```
+clients/chrome-extension/
+├── manifest.json            # Manifest V3 config
+├── popup.html/css/js        # Quick capture popup (AI/Manual toggle)
+├── background.js            # Service worker (context menus, badge)
+├── content.js               # Content script (text selection)
+├── options.html/js          # Settings (API URL, API key)
+└── icons/                   # 16/32/48/128px PNG icons
+```
+
+Features:
+- Right-click context menus ("Send to Mailroom", "Send page to Mailroom")
+- Popup auto-fills page URL, title, and selected text
+- AI/Manual mode toggle
+- Badge feedback (checkmark/error)
+- Chrome storage sync for API key and URL
+- Source: `chrome_extension` with page metadata in `source_ref`
+
+### 5.3 Future Client Surfaces
 
 All thin clients follow the same pattern:
 1. Authenticate with API key or JWT
@@ -381,8 +411,8 @@ All thin clients follow the same pattern:
 
 | Suite | Framework | Tests | Scope |
 |-------|-----------|-------|-------|
-| Backend | pytest + SQLite | 46 | Pipeline stages, API endpoints, webhooks, model provider |
-| Frontend | Vitest + @testing-library/react | 7 | CaptureInput, Tasks page |
+| Backend | pytest + SQLite | 53 | Pipeline stages, API endpoints, webhooks, workflows, model provider |
+| Frontend | Vitest + @testing-library/react | 8 | CaptureInput, Tasks page |
 
 Test infrastructure uses an in-memory SQLite database with type adapters for PostgreSQL UUID/JSONB columns, avoiding external dependencies.
 
@@ -403,10 +433,19 @@ AI extraction calls use `tenacity` for automatic retry:
 ### Rate Limiting
 
 In-memory sliding-window rate limiter (`app/core/rate_limit.py`):
-- Default: 60 requests/minute per user (configurable via `RATE_LIMIT_PER_MINUTE`)
+- Default: 120 requests/minute per user (configurable via `RATE_LIMIT_PER_MINUTE`)
 - Checked in the `get_current_user` auth dependency
 - Returns 429 when exceeded
 - Note: In-memory only — Redis needed for horizontal scaling
+
+### Database Indexes
+
+Composite indexes optimized for common query patterns:
+- `ix_surface_conn_lookup` — `(surface, external_id, is_active)` for webhook sender lookup
+- `ix_task_workflow_order` — `(workflow_id, workflow_order)` for workflow step sorting
+- `ix_task_workspace_status` — `(workspace_id, status)` for task list filtering
+- `captures.status` — Single-column index for status-based filtering (active vs trashed)
+- Standard single-column indexes on all foreign keys
 
 ### Input Validation
 

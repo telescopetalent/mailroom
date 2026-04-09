@@ -11,7 +11,7 @@
 | 5 | Core external surfaces | Email and Slack connectors | Done |
 | 6 | Quality, trust, reliability | Testing, monitoring, error handling, edge cases | Done |
 | INF | Infrastructure | AWS deploy, domain, CI/CD, wire email + Slack | Next |
-| 7 | Native surfaces | Chrome extension, iPhone app, iOS share extension, Apple Notes | Planned |
+| 7 | Native surfaces | Chrome extension, iPhone app, iOS share extension, Apple Notes | **In Progress** |
 | 8 | Ambient capture | Desktop drag-and-drop bin | Planned |
 | 9 | Messaging expansion | SMS, Telegram, Discord, WhatsApp | Future |
 
@@ -291,34 +291,38 @@
 
 **Recommended build order:** Chrome extension → iPhone app → iOS share extension → Apple Notes
 
-**Epic 7.1: Chrome extension (fastest to build)**
-- [ ] Extension popup for quick capture (paste text, screenshot)
-- [ ] Right-click context menu: "Send to Mailroom"
-- [ ] Selected text capture
-- [ ] Badge showing pending review count
-- [ ] Thin client → POST /api/v1/captures with API key auth
+**Epic 7.1: Chrome extension** ✅
+- [x] Manifest V3 extension with popup UI (AI/Manual toggle)
+- [x] Right-click context menu: "Send to Mailroom" (selected text) and "Send page to Mailroom"
+- [x] Selected text auto-fill in popup via chrome.scripting.executeScript
+- [x] Badge feedback: green checkmark on success, red "!" on failure
+- [x] Options page for API URL and API key configuration
+- [x] Content script for page text selection
+- [x] Auto-fills page URL and title in popup
+- [x] Backend CORS: `allow_origin_regex` for `chrome-extension://` origins
+- [x] Source: `chrome_extension` with page URL/title in `source_ref`
+- [x] Thin client → POST /api/v1/captures with Bearer token auth
+- [x] Install: Load unpacked from `clients/chrome-extension/`
 
-**Epic 7.2: iPhone app**
+**Epic 7.2: iPhone app** (requires Apple Developer account)
 - [ ] SwiftUI capture-first app
 - [ ] Camera, paste, voice note input
 - [ ] API client (shared with share extension)
 - [ ] Push notification for review results
-
-**Epic 7.2: iOS share extension**
-- [ ] Share extension target
-- [ ] Handle text, URLs, images, files from any app
-- [ ] Send to POST /api/v1/captures
+- [ ] Review workflow with approve/reject
+- [ ] Task list with workflow groups
 
 **Epic 7.3: iOS share extension**
 - [ ] Share extension target
 - [ ] Handle text, URLs, images, files from any app
 - [ ] Send to POST /api/v1/captures
+- [ ] Minimal UI: capture confirmation
 
 **Epic 7.4: Apple Notes share flow**
 - [ ] Share extension support for Notes app
 - [ ] Parse shared note content
 
-**Deliverable:** Users can capture from iPhone, any iOS app, Notes, and Chrome without opening the web app.
+**Deliverable:** Users can capture from Chrome (done), iPhone, any iOS app, and Notes without opening the web app.
 
 ---
 
