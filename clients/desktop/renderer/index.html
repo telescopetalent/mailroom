@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mailroom</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Setup banner -->
+  <div id="setup-banner" class="banner" style="display: none;">
+    <span>API key not set.</span>
+    <a href="#" id="open-settings-link">Settings</a>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <h1>Mailroom</h1>
+    <button id="settings-btn" class="icon-btn" title="Settings">&#9881;</button>
+  </div>
+
+  <!-- Drop zone -->
+  <div id="drop-zone" class="drop-zone">
+    <div class="drop-icon">&#128229;</div>
+    <div class="drop-text">Drop files here</div>
+    <div class="drop-hint">Images, PDFs, or DOCX</div>
+  </div>
+
+  <!-- Quick capture -->
+  <div class="section">
+    <label for="capture-text">Quick Capture</label>
+    <textarea id="capture-text" rows="3" placeholder="Type or paste text..."></textarea>
+    <div class="actions">
+      <button id="capture-btn" class="btn-primary">Capture</button>
+      <button id="clipboard-btn" class="btn-secondary" title="Capture clipboard (Cmd+Shift+M)">&#128203; Clipboard</button>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div id="status" class="status" style="display: none;"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
