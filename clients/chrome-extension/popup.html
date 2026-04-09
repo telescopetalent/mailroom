@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mailroom</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- Not configured state -->
+  <div id="setup-banner" class="banner banner-warning" style="display: none;">
+    <span>Set your API key in</span>
+    <a href="#" id="open-options">Settings</a>
+  </div>
+
+  <!-- Main capture form -->
+  <div id="capture-form">
+    <div class="header">
+      <h1>Mailroom</h1>
+      <div class="mode-toggle">
+        <button id="mode-ai" class="mode-btn active" data-mode="ai">AI</button>
+        <button id="mode-manual" class="mode-btn" data-mode="manual">Manual</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="capture-text">Content</label>
+      <textarea id="capture-text" rows="5" placeholder="Paste or type content to capture..."></textarea>
+    </div>
+
+    <div class="field">
+      <label for="page-url">Page URL</label>
+      <input id="page-url" type="text" readonly>
+    </div>
+
+    <div class="field">
+      <label for="page-title">Page Title</label>
+      <input id="page-title" type="text" readonly>
+    </div>
+
+    <button id="send-btn" class="btn-primary">Send to Mailroom</button>
+  </div>
+
+  <!-- Status messages -->
+  <div id="status" class="status" style="display: none;"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

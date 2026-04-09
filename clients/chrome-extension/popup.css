@@ -1,0 +1,164 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 360px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: #fff;
+  padding: 16px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.header h1 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111;
+}
+
+.mode-toggle {
+  display: flex;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.mode-btn {
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  background: #f5f5f5;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mode-btn.active {
+  background: #111;
+  color: #fff;
+}
+
+.mode-btn:hover:not(.active) {
+  background: #e8e8e8;
+}
+
+.field {
+  margin-bottom: 10px;
+}
+
+.field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.field textarea,
+.field input[type="text"] {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #1a1a1a;
+  background: #fafafa;
+  resize: vertical;
+  transition: border-color 0.15s;
+}
+
+.field textarea:focus,
+.field input[type="text"]:focus {
+  outline: none;
+  border-color: #111;
+  background: #fff;
+}
+
+.field input[readonly] {
+  color: #888;
+  background: #f0f0f0;
+  cursor: default;
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: #111;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-top: 4px;
+}
+
+.btn-primary:hover {
+  background: #333;
+}
+
+.btn-primary:disabled {
+  background: #999;
+  cursor: not-allowed;
+}
+
+.status {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.status.success {
+  background: #e6f9e6;
+  color: #1a7a1a;
+}
+
+.status.error {
+  background: #fde8e8;
+  color: #b91c1c;
+}
+
+.status.loading {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.banner {
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.banner-warning {
+  background: #fff7e6;
+  color: #92400e;
+}
+
+.banner a {
+  color: #92400e;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
