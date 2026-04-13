@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, memo } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   DndContext,
@@ -11,6 +11,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { GripVertical, Lock, Check, ChevronRight, Calendar, Link2, Unlock } from "lucide-react";
 import { api } from "../api/client";
 import TaskDetailModal from "../components/TaskDetailModal";
 import { useDndSensors } from "../hooks/useDndSensors";
@@ -26,103 +27,74 @@ import type {
 function SortableStep({ step, index, onToggle, onSelect, isLocked, showDivider, onToggleSubtask }: { step: WorkflowTask; index: number; onToggle: () => void; onSelect: () => void; isLocked?: boolean; showDivider?: boolean; onToggleSubtask?: (subtaskIndex: number) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    display: "flex",
-    alignItems: "center",
-    gap: "0.5rem",
-    padding: "0.35rem 0",
-    borderBottom: "1px solid #f3f4f6",
-    opacity: isDragging ? 0.5 : isLocked ? 0.45 : step.status === "completed" ? 0.6 : 1,
-    background: isDragging ? "#f0f4ff" : "transparent",
-    cursor: "default",
-  };
-
   return (
     <>
-    {showDivider && (
-      <div style={{
-        display: "flex", alignItems: "center", gap: "0.5rem",
-        padding: "0.5rem 0 0.25rem", margin: "0.25rem 0",
-      }}>
-        <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
-        <span style={{ fontSize: "0.7rem", color: "#999", whiteSpace: "nowrap" }}>{"\u{1F513}"} unlocks after above</span>
-        <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
-      </div>
-    )}
-    <div ref={setNodeRef} style={style} {...attributes}>
-      {/* Drag handle */}
-      <span
-        {...listeners}
-        style={{ cursor: "grab", color: "#d1d5db", fontSize: "0.85rem", padding: "0 0.15rem", userSelect: "none", touchAction: "none" }}
-        title="Drag to reorder"
-      >
-        &#x2807;
-      </span>
-      {/* Circle — locked or normal */}
-      <button
-        onClick={() => !isLocked && onToggle()}
-        disabled={isLocked}
-        style={{
-          width: 18, height: 18, borderRadius: "50%",
-          border: `2px solid ${isLocked ? "#e5e7eb" : step.status === "completed" ? "#d1d5db" : "#d1d5db"}`,
-          background: step.status === "completed" ? "#d1d5db" : "transparent",
-          cursor: isLocked ? "default" : "pointer", flexShrink: 0, padding: 0,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}
-      >
-        {isLocked ? (
-          <span style={{ fontSize: "0.5rem", color: "#bbb" }}>{"\u{1F512}"}</span>
-        ) : step.status === "completed" ? (
-          <span style={{ color: "white", fontSize: "0.55rem" }}>{"\u2713"}</span>
-        ) : null}
-      </button>
-      <span style={{ color: "#aaa", fontSize: "0.75rem", width: "1.2rem", textAlign: "center", flexShrink: 0 }}>{index + 1}.</span>
-      <span
-        onClick={onSelect}
-        style={{
-          flex: 1,
-          textDecoration: step.status === "completed" ? "line-through" : "none",
-          color: step.status === "completed" ? "#999" : "#1a1a1a",
-          cursor: "pointer",
-          fontSize: "0.9rem",
-        }}
-      >
-        {step.title}
-      </span>
-      {step.owner && <span style={{ color: "#888", fontSize: "0.72rem" }}>{step.owner}</span>}
-    </div>
-    {/* Sub-tasks */}
-    {step.sub_tasks && step.sub_tasks.length > 0 && !isLocked && (
-      <div style={{ marginLeft: "3.5rem", padding: "0.2rem 0 0.3rem" }}>
-        {step.sub_tasks.map((st, sti) => (
-          <div
-            key={sti}
-            style={{
-              display: "flex", alignItems: "center", gap: "0.4rem",
-              padding: "0.15rem 0", fontSize: "0.82rem",
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={st.completed}
-              onChange={() => onToggleSubtask?.(sti)}
-              style={{ width: 14, height: 14 }}
-            />
-            <span style={{
-              textDecoration: st.completed ? "line-through" : "none",
-              color: st.completed ? "#bbb" : "#666",
-            }}>
-              {st.title}
-            </span>
-          </div>
-        ))}
-        <div style={{ fontSize: "0.7rem", color: "#bbb", marginTop: "0.15rem" }}>
-          {step.sub_tasks.filter((s) => s.completed).length}/{step.sub_tasks.length} done
+      {showDivider && (
+        <div className="flex items-center gap-2 py-1.5 my-0.5">
+          <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
+          <span className="text-[10px] text-zinc-400 whitespace-nowrap flex items-center gap-1">
+            <Unlock className="w-2.5 h-2.5" /> unlocks after above
+          </span>
+          <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
         </div>
+      )}
+      <div
+        ref={setNodeRef}
+        style={{ transform: CSS.Transform.toString(transform), transition }}
+        className={`flex items-center gap-2 py-1.5 border-b border-zinc-100 dark:border-zinc-800 ${
+          isDragging ? "opacity-50 bg-blue-50 dark:bg-blue-950/20" : ""
+        } ${isLocked ? "opacity-45" : step.status === "completed" ? "opacity-60" : ""}`}
+        {...attributes}
+      >
+        <span {...listeners} className="cursor-grab text-zinc-300 dark:text-zinc-600 select-none touch-none" title="Drag to reorder">
+          <GripVertical className="w-3.5 h-3.5" />
+        </span>
+        <button
+          onClick={() => !isLocked && onToggle()}
+          disabled={isLocked}
+          className="w-4.5 h-4.5 rounded-full border-2 border-zinc-300 dark:border-zinc-600 shrink-0 p-0 flex items-center justify-center cursor-pointer disabled:cursor-default bg-transparent"
+          style={{
+            background: step.status === "completed" ? "#d1d5db" : "transparent",
+          }}
+        >
+          {isLocked ? (
+            <Lock className="w-2 h-2 text-zinc-400" />
+          ) : step.status === "completed" ? (
+            <Check className="w-2.5 h-2.5 text-white" />
+          ) : null}
+        </button>
+        <span className="text-xs text-zinc-400 w-4 text-center shrink-0">{index + 1}.</span>
+        <span
+          onClick={onSelect}
+          className={`flex-1 text-sm cursor-pointer ${
+            step.status === "completed" ? "line-through text-zinc-400 dark:text-zinc-500" : "text-zinc-900 dark:text-zinc-100"
+          }`}
+        >
+          {step.title}
+        </span>
+        {step.owner && <span className="text-xs text-zinc-400">{step.owner}</span>}
       </div>
-    )}
+      {/* Sub-tasks */}
+      {step.sub_tasks && step.sub_tasks.length > 0 && !isLocked && (
+        <div className="ml-14 py-1">
+          {step.sub_tasks.map((st, sti) => (
+            <div key={sti} className="flex items-center gap-1.5 py-0.5 text-xs">
+              <input
+                type="checkbox"
+                checked={st.completed}
+                onChange={() => onToggleSubtask?.(sti)}
+                className="w-3.5 h-3.5"
+              />
+              <span className={st.completed ? "line-through text-zinc-400" : "text-zinc-600 dark:text-zinc-400"}>
+                {st.title}
+              </span>
+            </div>
+          ))}
+          <div className="text-[10px] text-zinc-400 mt-0.5">
+            {step.sub_tasks.filter((s) => s.completed).length}/{step.sub_tasks.length} done
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -144,7 +116,6 @@ export default function Tasks() {
       api<WorkflowList>("/workflows?status=open"),
     ])
       .then(([taskData, wfData]) => {
-        // Standalone tasks = tasks not in any workflow
         setStandaloneTasks(taskData.items.filter((t) => !t.workflow_id));
         setWorkflows(wfData.items);
       })
@@ -189,11 +160,9 @@ export default function Tasks() {
   const handleDragEnd = (wf: Workflow) => (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-
     const oldIndex = wf.tasks.findIndex((t) => t.id === active.id);
     const newIndex = wf.tasks.findIndex((t) => t.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-
     const reordered = [...wf.tasks];
     const [moved] = reordered.splice(oldIndex, 1);
     reordered.splice(newIndex, 0, moved);
@@ -217,7 +186,6 @@ export default function Tasks() {
         method: "PATCH",
         body: JSON.stringify({ status: newStatus }),
       });
-      // Reload to get updated workflow statuses
       loadAll();
       if (showCompleted) loadCompleted();
     } catch (e: unknown) {
@@ -232,107 +200,69 @@ export default function Tasks() {
     return (
       <div
         key={task.id}
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          gap: "0.75rem",
-          padding: "0.75rem 0",
-          borderBottom: "1px solid #f0f0f0",
-          opacity: task.is_blocked ? 0.55 : 1,
-        }}
+        className={`flex items-start gap-3 py-3 border-b border-zinc-100 dark:border-zinc-800 ${task.is_blocked ? "opacity-55" : ""}`}
       >
-        {/* Priority-colored circle (or lock if blocked) */}
         <button
           onClick={() => !task.is_blocked && toggleTaskStatus(task)}
           disabled={task.is_blocked}
+          className="w-5 h-5 rounded-full border-2 shrink-0 mt-0.5 p-0 flex items-center justify-center cursor-pointer disabled:cursor-default bg-transparent"
           style={{
-            width: 22,
-            height: 22,
-            borderRadius: "50%",
-            border: `2px solid ${task.is_blocked ? "#e5e7eb" : circleColor}`,
+            borderColor: task.is_blocked ? "#e5e7eb" : circleColor,
             background: isCompleted ? circleColor : "transparent",
-            cursor: "pointer",
-            flexShrink: 0,
-            marginTop: 2,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 0,
           }}
         >
           {task.is_blocked ? (
-            <span style={{ fontSize: "0.6rem", color: "#999" }}>{"\u{1F512}"}</span>
+            <Lock className="w-2.5 h-2.5 text-zinc-400" />
           ) : isCompleted ? (
-            <span style={{ color: "white", fontSize: "0.65rem", lineHeight: 1 }}>{"\u2713"}</span>
+            <Check className="w-2.5 h-2.5 text-white" />
           ) : null}
         </button>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Title */}
+        <div className="flex-1 min-w-0">
           <div
             onClick={() => setSelectedTaskId(task.id)}
-            style={{
-              fontWeight: 500,
-              fontSize: "0.95rem",
-              cursor: "pointer",
-              textDecoration: isCompleted ? "line-through" : "none",
-              color: isCompleted ? "#999" : "#1a1a1a",
-            }}
+            className={`text-sm font-medium cursor-pointer ${
+              isCompleted ? "line-through text-zinc-400 dark:text-zinc-500" : "text-zinc-900 dark:text-zinc-100"
+            }`}
           >
             {task.title}
           </div>
-
-          {/* Description */}
           {task.description && (
-            <div style={{ color: "#888", fontSize: "0.82rem", marginTop: "0.15rem" }}>{task.description}</div>
+            <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{task.description}</div>
           )}
-
-          {/* Inline metadata row */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginTop: "0.3rem", fontSize: "0.78rem", color: "#7c3aed", flexWrap: "wrap" }}>
-            {task.owner && (
-              <span style={{ color: "#888" }}>{task.owner}</span>
-            )}
+          <div className="flex items-center gap-2.5 mt-1 text-xs flex-wrap">
+            {task.owner && <span className="text-zinc-400">{task.owner}</span>}
             {task.due_date && (
-              <span>{"\u{1F4C5}"} {task.due_date}</span>
+              <span className="flex items-center gap-1 text-violet-600 dark:text-violet-400">
+                <Calendar className="w-3 h-3" /> {task.due_date}
+              </span>
             )}
             {task.capture_id && (
-              <Link to={`/captures/${task.capture_id}`} style={{ color: "#7c3aed", textDecoration: "none" }}>
-                {"\u{1F517}"} source
+              <Link to={`/captures/${task.capture_id}`} className="flex items-center gap-1 text-violet-600 dark:text-violet-400 no-underline hover:underline">
+                <Link2 className="w-3 h-3" /> source
               </Link>
             )}
           </div>
-
-          {/* Labels */}
-          {/* Tags row */}
           {(task.workflow_name || task.is_blocked) && (
-            <div style={{ display: "flex", gap: "0.35rem", marginTop: "0.3rem", flexWrap: "wrap", alignItems: "center" }}>
+            <div className="flex gap-1.5 mt-1 flex-wrap items-center">
               {task.workflow_name && (
-                <span style={{
-                  background: "#f3f0ff", color: "#7c3aed",
-                  padding: "0.1rem 0.45rem", borderRadius: "4px", fontSize: "0.72rem",
-                }}>
+                <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
                   {task.workflow_name}
                 </span>
               )}
               {task.is_blocked && (
-                <span style={{
-                  background: "#fef2f2", color: "#dc2626",
-                  padding: "0.1rem 0.45rem", borderRadius: "4px", fontSize: "0.72rem",
-                }}>
-                  {"\u{1F512}"} Blocked by: {task.blocked_by_workflow_name || task.blocked_by_task_title || "dependency"}
+                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400">
+                  <Lock className="w-2.5 h-2.5" /> Blocked by: {task.blocked_by_workflow_name || task.blocked_by_task_title || "dependency"}
                 </span>
               )}
             </div>
           )}
         </div>
 
-        {/* Expand chevron */}
-        <span
+        <ChevronRight
           onClick={() => setSelectedTaskId(task.id)}
-          style={{ color: "#ccc", cursor: "pointer", fontSize: "0.9rem", padding: "0.2rem", flexShrink: 0 }}
-        >
-          {"\u203A"}
-        </span>
+          className="w-4 h-4 text-zinc-300 dark:text-zinc-600 cursor-pointer shrink-0 mt-1 hover:text-zinc-500 transition-colors"
+        />
       </div>
     );
   };
@@ -345,46 +275,36 @@ export default function Tasks() {
     return (
       <div
         key={wf.id}
-        style={{
-          marginBottom: "1rem",
-          border: "1px solid #eee",
-          borderRadius: "8px",
-          padding: "0.85rem",
-          opacity: wf.status === "completed" ? 0.6 : 1,
-          background: "#fafafa",
-        }}
+        className={`mb-3 border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 bg-zinc-50 dark:bg-zinc-900/50 ${
+          wf.status === "completed" ? "opacity-60" : ""
+        }`}
       >
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "0.4rem" }}>
+        <div className="flex items-start justify-between mb-2">
           <div>
-            <div style={{ fontWeight: 600, fontSize: "0.95rem", color: "#1a1a1a" }}>{wf.name}</div>
-            {wf.description && <div style={{ color: "#888", fontSize: "0.82rem", marginTop: "0.1rem" }}>{wf.description}</div>}
+            <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">{wf.name}</div>
+            {wf.description && <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{wf.description}</div>}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexShrink: 0, marginLeft: "0.5rem" }}>
-            <span style={{ fontSize: "0.75rem", color: "#7c3aed" }}>{"\u{1F517}"} {completedCount}/{totalCount}</span>
+          <div className="flex items-center gap-1.5 shrink-0 ml-2">
+            <span className="flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400">
+              <Link2 className="w-3 h-3" /> {completedCount}/{totalCount}
+            </span>
           </div>
         </div>
 
         {/* Progress bar */}
-        <div style={{ height: 3, background: "#e5e7eb", borderRadius: 2, marginBottom: "0.6rem" }}>
+        <div className="h-0.5 bg-zinc-200 dark:bg-zinc-800 rounded-full mb-3">
           <div
-            style={{
-              height: "100%",
-              width: `${progress}%`,
-              background: progress === 100 ? "#22c55e" : "#7c3aed",
-              borderRadius: 2,
-              transition: "width 0.3s",
-            }}
+            className={`h-full rounded-full transition-all duration-300 ${progress === 100 ? "bg-emerald-500" : "bg-violet-600"}`}
+            style={{ width: `${progress}%` }}
           />
         </div>
 
-        {/* Steps — drag to reorder */}
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd(wf)}>
           <SortableContext items={wf.tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
             {wf.tasks.map((step, si) => {
               const priorSteps = wf.tasks.slice(0, si);
               const isLocked = priorSteps.length > 0 && priorSteps.some((s) => s.status !== "completed");
-              // Show divider before dependent steps (from AI flag or last step heuristic)
-              const isDependentStep = (step as any).depends_on_prior === true;
+              const isDependentStep = (step as WorkflowTask & { depends_on_prior?: boolean }).depends_on_prior === true;
 
               return (
                 <SortableStep
@@ -403,8 +323,8 @@ export default function Tasks() {
         </DndContext>
 
         {wf.capture_id && (
-          <div style={{ marginTop: "0.5rem", fontSize: "0.8rem" }}>
-            <Link to={`/captures/${wf.capture_id}`} style={{ color: "#2563eb" }}>View capture</Link>
+          <div className="mt-2 text-xs">
+            <Link to={`/captures/${wf.capture_id}`} className="text-violet-600 dark:text-violet-400 no-underline hover:underline">View capture</Link>
           </div>
         )}
       </div>
@@ -414,59 +334,42 @@ export default function Tasks() {
   const completedCount = completedTasks.length + completedWorkflows.length;
 
   return (
-    <div style={{ maxWidth: 700 }}>
-      <h2>Tasks</h2>
+    <div>
+      <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Tasks</h2>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
       {loading ? (
-        <p style={{ color: "#888" }}>Loading...</p>
+        <p className="text-sm text-zinc-400">Loading...</p>
       ) : workflows.length === 0 && standaloneTasks.length === 0 ? (
-        <p style={{ color: "#888" }}>
+        <p className="text-sm text-zinc-400">
           No open tasks. Capture content and approve extracted items to create tasks.
         </p>
       ) : (
         <>
-          {/* Workflows */}
           {workflows.map(renderWorkflow)}
-
-          {/* Standalone tasks */}
           {standaloneTasks.length > 0 && workflows.length > 0 && (
-            <h4 style={{ margin: "1rem 0 0.5rem", color: "#666" }}>Standalone Tasks</h4>
+            <h4 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mt-6 mb-2">Standalone Tasks</h4>
           )}
           {standaloneTasks.map(renderTask)}
         </>
       )}
 
       {/* Completed section */}
-      <div style={{ marginTop: "2rem" }}>
+      <div className="mt-8">
         <button
           onClick={() => setShowCompleted((prev) => !prev)}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontSize: "0.9rem",
-            color: "#666",
-            padding: "0.5rem 0",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-          }}
+          className="flex items-center gap-2 py-2 bg-transparent border-0 cursor-pointer text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
         >
-          <span style={{ display: "inline-block", transform: showCompleted ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>
-            &#9654;
-          </span>
+          <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-150 ${showCompleted ? "rotate-90" : ""}`} />
           Completed
           {completedCount > 0 && ` (${completedCount})`}
         </button>
 
         {showCompleted && (
-          <div>
+          <div className="ml-1">
             {completedCount === 0 ? (
-              <p style={{ color: "#aaa", fontSize: "0.85rem", marginLeft: "1.5rem" }}>
-                No completed items yet.
-              </p>
+              <p className="text-xs text-zinc-400 ml-5">No completed items yet.</p>
             ) : (
               <>
                 {completedWorkflows.map(renderWorkflow)}
@@ -477,7 +380,6 @@ export default function Tasks() {
         )}
       </div>
 
-      {/* Task detail modal */}
       {selectedTaskId && (
         <TaskDetailModal
           taskId={selectedTaskId}

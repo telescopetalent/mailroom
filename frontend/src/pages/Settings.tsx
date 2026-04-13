@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { Check, Plus, X } from "lucide-react";
 import { api } from "../api/client";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 interface WorkspaceSettings {
   id: string;
@@ -11,7 +13,7 @@ interface SurfaceConnection {
   id: string;
   surface: string;
   external_id: string;
-  config: Record<string, any> | null;
+  config: Record<string, unknown> | null;
   is_active: boolean;
   created_at: string;
 }
@@ -20,13 +22,11 @@ interface SurfaceConnectionList {
   items: SurfaceConnection[];
 }
 
-const cardStyle: React.CSSProperties = {
-  padding: "1.5rem",
-  border: "1px solid #e2e2e2",
-  borderRadius: "6px",
-  background: "white",
-  marginBottom: "1.5rem",
-};
+const cardCls = "p-5 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-white dark:bg-zinc-900 mb-5";
+const sectionTitleCls = "text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1";
+const sectionDescCls = "text-sm text-zinc-500 dark:text-zinc-400 mb-4";
+const selectCls = "px-2.5 py-1.5 text-sm bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md outline-none cursor-pointer text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-violet-500 focus:border-transparent";
+const inputCls = "flex-1 px-2.5 py-1.5 text-sm bg-transparent border border-zinc-300 dark:border-zinc-700 rounded-md outline-none text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-violet-500 focus:border-transparent";
 
 export default function Settings() {
   const [settings, setSettings] = useState<WorkspaceSettings | null>(null);
@@ -35,11 +35,11 @@ export default function Settings() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
-  // Surface connections state
   const [connections, setConnections] = useState<SurfaceConnection[]>([]);
   const [newSurface, setNewSurface] = useState("email");
   const [newExternalId, setNewExternalId] = useState("");
   const [addingConnection, setAddingConnection] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<string | null>(null);
 
   useEffect(() => {
     api<WorkspaceSettings>("/workspaces/current")
@@ -109,7 +109,6 @@ export default function Settings() {
   };
 
   const removeConnection = async (id: string) => {
-    if (!window.confirm("Remove this connection?")) return;
     try {
       await api(`/surface-connections/${id}`, { method: "DELETE" });
       loadConnections();
@@ -118,27 +117,29 @@ export default function Settings() {
     }
   };
 
-  if (!settings && !error) return <p>Loading...</p>;
+  const isDirty = settings && retentionDays !== settings.trash_retention_days;
+
+  if (!settings && !error) return <p className="text-sm text-zinc-400">Loading...</p>;
 
   return (
-    <div style={{ maxWidth: 500 }}>
-      <h2>Settings</h2>
+    <div>
+      <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">Settings</h2>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-400 mb-3">{error}</p>}
 
       {/* Trash settings */}
-      <div style={cardStyle}>
-        <h3 style={{ marginTop: 0 }}>Trash</h3>
-        <p style={{ color: "#666", fontSize: "0.9rem" }}>
+      <div className={cardCls}>
+        <h3 className={sectionTitleCls}>Trash</h3>
+        <p className={sectionDescCls}>
           Captures in the trash will be automatically deleted after the retention period.
         </p>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "1rem" }}>
-          <label style={{ fontWeight: 500 }}>Retention period:</label>
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Retention period:</label>
           <select
             value={retentionDays}
             onChange={(e) => setRetentionDays(Number(e.target.value))}
-            style={{ padding: "0.4rem 0.5rem", borderRadius: "4px", border: "1px solid #d1d5db" }}
+            className={selectCls}
           >
             <option value={7}>7 days</option>
             <option value={14}>14 days</option>
@@ -148,103 +149,68 @@ export default function Settings() {
           </select>
         </div>
 
-        <div style={{ marginTop: "1.5rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+        <div className="flex items-center gap-3 mt-4">
           <button
             onClick={save}
-            disabled={saving || !!(settings && retentionDays === settings.trash_retention_days)}
-            style={{
-              padding: "0.5rem 1rem",
-              background:
-                saving || (settings && retentionDays === settings.trash_retention_days)
-                  ? "#e5e7eb"
-                  : "#111",
-              color:
-                saving || (settings && retentionDays === settings.trash_retention_days)
-                  ? "#9ca3af"
-                  : "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor:
-                saving || (settings && retentionDays === settings.trash_retention_days)
-                  ? "default"
-                  : "pointer",
-            }}
+            disabled={saving || !isDirty}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md border-0 cursor-pointer transition-colors ${
+              saving || !isDirty
+                ? "bg-zinc-200 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed"
+                : "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200"
+            }`}
           >
             {saving ? "Saving..." : "Save"}
           </button>
-          {saved && <span style={{ color: "#16a34a", fontSize: "0.85rem" }}>Saved!</span>}
+          {saved && (
+            <span className="flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400">
+              <Check className="w-3.5 h-3.5" />
+              Saved!
+            </span>
+          )}
         </div>
       </div>
 
       {/* Connected Surfaces */}
-      <div style={cardStyle}>
-        <h3 style={{ marginTop: 0 }}>Connected Surfaces</h3>
-        <p style={{ color: "#666", fontSize: "0.9rem" }}>
+      <div className={cardCls}>
+        <h3 className={sectionTitleCls}>Connected Surfaces</h3>
+        <p className={sectionDescCls}>
           Connect email addresses and Slack workspaces to capture content from external surfaces.
         </p>
 
         {/* Existing connections */}
         {connections.length > 0 && (
-          <div style={{ marginTop: "1rem" }}>
+          <div className="flex flex-col gap-2 mb-4">
             {connections.map((conn) => (
               <div
                 key={conn.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "0.6rem 0.75rem",
-                  marginBottom: "0.5rem",
-                  background: "#f9fafb",
-                  borderRadius: "4px",
-                  border: "1px solid #e5e7eb",
-                  opacity: conn.is_active ? 1 : 0.5,
-                }}
+                className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                  conn.is_active
+                    ? "bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700"
+                    : "bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 opacity-50"
+                }`}
               >
-                <div>
-                  <span
-                    style={{
-                      fontSize: "0.75rem",
-                      padding: "0.1rem 0.4rem",
-                      borderRadius: "3px",
-                      background: conn.surface === "email" ? "#dbeafe" : "#fce7f3",
-                      color: conn.surface === "email" ? "#1e40af" : "#9d174d",
-                      marginRight: "0.5rem",
-                      fontWeight: 600,
-                    }}
-                  >
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                    conn.surface === "email"
+                      ? "bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400"
+                      : "bg-pink-100 dark:bg-pink-950/30 text-pink-700 dark:text-pink-400"
+                  }`}>
                     {conn.surface}
                   </span>
-                  <span style={{ fontSize: "0.9rem" }}>{conn.external_id}</span>
+                  <span className="text-sm text-zinc-900 dark:text-zinc-100">{conn.external_id}</span>
                 </div>
-                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                <div className="flex gap-2 items-center">
                   <button
                     onClick={() => toggleConnection(conn)}
-                    style={{
-                      fontSize: "0.8rem",
-                      padding: "0.2rem 0.5rem",
-                      background: "transparent",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                      color: "#666",
-                    }}
+                    className="px-2.5 py-1 text-xs font-medium rounded-md bg-transparent border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
                   >
                     {conn.is_active ? "Disable" : "Enable"}
                   </button>
                   <button
-                    onClick={() => removeConnection(conn.id)}
-                    style={{
-                      fontSize: "0.8rem",
-                      padding: "0.2rem 0.5rem",
-                      background: "transparent",
-                      border: "1px solid #fca5a5",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                      color: "#dc2626",
-                    }}
+                    onClick={() => setRemoveTarget(conn.id)}
+                    className="p-1 rounded-md bg-transparent border-0 text-zinc-400 hover:text-red-500 cursor-pointer transition-colors"
                   >
-                    Remove
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -253,23 +219,13 @@ export default function Settings() {
         )}
 
         {/* Add connection form */}
-        <div
-          style={{
-            marginTop: "1rem",
-            padding: "0.75rem",
-            background: "#f9fafb",
-            borderRadius: "4px",
-            border: "1px solid #e5e7eb",
-          }}
-        >
-          <div style={{ fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.5rem", color: "#444" }}>
-            Add Connection
-          </div>
-          <div style={{ display: "flex", gap: "0.5rem" }}>
+        <div className="p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
+          <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-2">Add Connection</div>
+          <div className="flex gap-2">
             <select
               value={newSurface}
               onChange={(e) => setNewSurface(e.target.value)}
-              style={{ padding: "0.4rem 0.5rem", borderRadius: "4px", border: "1px solid #d1d5db" }}
+              className={selectCls}
             >
               <option value="email">Email</option>
               <option value="slack">Slack</option>
@@ -279,32 +235,36 @@ export default function Settings() {
               placeholder={newSurface === "email" ? "user@example.com" : "Slack Team ID (e.g. T01ABC)"}
               value={newExternalId}
               onChange={(e) => setNewExternalId(e.target.value)}
-              style={{
-                flex: 1,
-                padding: "0.4rem 0.5rem",
-                borderRadius: "4px",
-                border: "1px solid #d1d5db",
-                fontSize: "0.9rem",
-              }}
+              onKeyDown={(e) => { if (e.key === "Enter") addConnection(); }}
+              className={inputCls}
             />
             <button
               onClick={addConnection}
               disabled={addingConnection || !newExternalId.trim()}
-              style={{
-                padding: "0.4rem 0.75rem",
-                background: addingConnection || !newExternalId.trim() ? "#e5e7eb" : "#111",
-                color: addingConnection || !newExternalId.trim() ? "#9ca3af" : "white",
-                border: "none",
-                borderRadius: "4px",
-                cursor: addingConnection || !newExternalId.trim() ? "default" : "pointer",
-                fontSize: "0.85rem",
-              }}
+              className={`flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-md border-0 cursor-pointer transition-colors ${
+                addingConnection || !newExternalId.trim()
+                  ? "bg-zinc-200 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed"
+                  : "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200"
+              }`}
             >
+              <Plus className="w-3.5 h-3.5" />
               {addingConnection ? "Adding..." : "Add"}
             </button>
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!removeTarget}
+        title="Remove connection"
+        description="Remove this surface connection? You can re-add it later."
+        confirmLabel="Remove"
+        onConfirm={() => {
+          if (removeTarget) removeConnection(removeTarget);
+          setRemoveTarget(null);
+        }}
+        onCancel={() => setRemoveTarget(null)}
+      />
     </div>
   );
 }

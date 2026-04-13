@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { ChevronLeft, Trash2, RotateCcw } from "lucide-react";
 import { api } from "../api/client";
 import ReviewPanel from "../components/ReviewPanel";
 import type { Extraction } from "../types";
@@ -29,77 +30,74 @@ export default function CaptureDetail() {
 
   useEffect(load, [id]);
 
-  if (error) return <p style={{ color: "red" }}>{error}</p>;
-  if (!capture) return <p>Loading...</p>;
+  if (error) return <p className="text-sm text-red-600 dark:text-red-400">{error}</p>;
+  if (!capture) return <p className="text-sm text-zinc-400">Loading...</p>;
 
   return (
-    <div style={{ maxWidth: 700 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Link to="/" style={{ color: "#555" }}>Back to Dashboard</Link>
+    <div>
+      {/* Header */}
+      <div className="flex justify-between items-center mb-4">
+        <Link to="/" className="flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400 no-underline hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
+          <ChevronLeft className="w-4 h-4" />
+          Back to Dashboard
+        </Link>
         {capture.status !== "trashed" && (
           <button
             onClick={async () => {
               await api(`/captures/${capture.id}/trash`, { method: "POST" });
               navigate("/");
             }}
-            style={{
-              padding: "0.3rem 0.7rem",
-              background: "transparent",
-              border: "1px solid #d1d5db",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontSize: "0.85rem",
-              color: "#999",
-            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-zinc-500 dark:text-zinc-400 bg-transparent border border-zinc-200 dark:border-zinc-700 rounded-md cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-red-600 dark:hover:text-red-400 transition-colors"
           >
+            <Trash2 className="w-3.5 h-3.5" />
             Move to Trash
           </button>
         )}
       </div>
 
-      <h2 style={{ marginTop: "1rem" }}>Capture</h2>
+      {/* Title */}
+      <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-3">Capture</h2>
 
-      <div style={{ display: "flex", gap: "1rem", color: "#666", fontSize: "0.85rem", marginBottom: "1rem" }}>
+      {/* Meta */}
+      <div className="flex gap-3 text-xs text-zinc-500 dark:text-zinc-400 mb-4">
         <span>Source: {capture.source}</span>
         <span>Type: {capture.content_type}</span>
-        <span>Status: <strong>{capture.status}</strong></span>
+        <span>Status: <strong className="text-zinc-700 dark:text-zinc-300">{capture.status}</strong></span>
         <span>{new Date(capture.captured_at).toLocaleString()}</span>
       </div>
 
+      {/* Normalized text */}
       {capture.normalized_text && (
-        <pre style={{ background: "#f8f9fa", padding: "1rem", borderRadius: "4px", whiteSpace: "pre-wrap", fontSize: "0.9rem" }}>
+        <pre className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 p-4 rounded-lg whitespace-pre-wrap text-sm font-mono text-zinc-800 dark:text-zinc-200">
           {capture.normalized_text}
         </pre>
       )}
 
+      {/* Review panel */}
       {capture.extraction && capture.status === "review" && (
         <>
-          <h3 style={{ marginTop: "1.5rem" }}>Review Extraction</h3>
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mt-6 mb-3">Review Extraction</h3>
           <ReviewPanel captureId={capture.id} extraction={capture.extraction} onReviewComplete={load} />
         </>
       )}
 
+      {/* Approved banner */}
       {capture.extraction && capture.status === "approved" && (
-        <div style={{ marginTop: "1.5rem", padding: "1rem", background: "#f0fdf4", borderRadius: "4px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
+        <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-lg flex justify-between items-center">
+          <div className="text-sm text-emerald-800 dark:text-emerald-300">
             <strong>Approved</strong> — items saved as tasks.{" "}
-            <Link to="/tasks">View tasks</Link>
+            <Link to="/tasks" className="text-violet-600 dark:text-violet-400 no-underline hover:underline">
+              View tasks
+            </Link>
           </div>
           <button
             onClick={async () => {
               await api(`/captures/${capture.id}/reopen`, { method: "POST" });
               load();
             }}
-            style={{
-              padding: "0.3rem 0.7rem",
-              background: "transparent",
-              border: "1px solid #d1d5db",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontSize: "0.85rem",
-              color: "#666",
-            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-zinc-600 dark:text-zinc-300 bg-transparent border border-zinc-200 dark:border-zinc-700 rounded-md cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
           >
+            <RotateCcw className="w-3.5 h-3.5" />
             Reopen for Review
           </button>
         </div>

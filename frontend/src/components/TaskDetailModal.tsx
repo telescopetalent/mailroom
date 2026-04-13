@@ -1,5 +1,7 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
+import * as Dialog from "@radix-ui/react-dialog";
+import { X, FolderOpen, Calendar, Flag, User, Tag, Bell, MapPin, Lock, GitBranch } from "lucide-react";
 import { api } from "../api/client";
 import { PRIORITY_COLORS } from "../constants";
 import type { TaskDetail } from "../types";
@@ -10,13 +12,18 @@ interface TaskDetailModalProps {
   onUpdate: () => void;
 }
 
+const metaRowCls = "flex items-center gap-3 py-2 px-2 -mx-2 rounded hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors";
+const metaIconCls = "w-4 h-4 text-zinc-400 shrink-0";
+const metaLabelCls = "w-20 text-sm text-zinc-500 dark:text-zinc-400 shrink-0";
+const metaValueCls = "flex-1 text-sm text-zinc-900 dark:text-zinc-100";
+const editInputCls = "w-full px-2 py-1 text-sm border border-zinc-300 dark:border-zinc-700 rounded bg-transparent text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent";
+
 export default function TaskDetailModal({ taskId, onClose, onUpdate }: TaskDetailModalProps) {
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [labelInput, setLabelInput] = useState("");
   const [availableWorkflows, setAvailableWorkflows] = useState<{ id: string; name: string }[]>([]);
-  const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -24,20 +31,10 @@ export default function TaskDetailModal({ taskId, onClose, onUpdate }: TaskDetai
       .then(setTask)
       .catch(() => onClose())
       .finally(() => setLoading(false));
-    // Load available workflows for dependency picker
     api<{ items: { id: string; name: string; status: string }[] }>("/workflows")
       .then((data) => setAvailableWorkflows(data.items.filter((w) => w.status === "open")))
       .catch(() => {});
   }, [taskId]);
-
-  // Close on Escape
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
 
   const saveField = useCallback(async (field: string, value: unknown) => {
     if (!task) return;
@@ -71,419 +68,295 @@ export default function TaskDetailModal({ taskId, onClose, onUpdate }: TaskDetai
     saveField("status", task.status === "open" ? "completed" : "open");
   };
 
-  if (loading || !task) {
-    return (
-      <div style={backdropStyle} onClick={onClose}>
-        <div style={{ ...modalStyle, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ color: "#999" }}>Loading...</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div style={backdropStyle} onClick={onClose}>
-      <div ref={modalRef} style={modalStyle} onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-          <button onClick={onClose} style={closeBtnStyle}>X</button>
-          <span style={{ color: "#999", fontSize: "0.75rem" }}>
-            {task.status === "completed" ? "Completed" : "Open"}
-          </span>
-        </div>
-
-        {/* Title + Status */}
-        <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", marginBottom: "0.75rem" }}>
-          <button
-            onClick={toggleStatus}
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: "50%",
-              border: `2px solid ${PRIORITY_COLORS[task.priority] || "#d1d5db"}`,
-              background: task.status === "completed" ? PRIORITY_COLORS[task.priority] || "#d1d5db" : "transparent",
-              cursor: "pointer",
-              flexShrink: 0,
-              marginTop: 2,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "white",
-              fontSize: "0.7rem",
-            }}
-          >
-            {task.status === "completed" ? "\u2713" : ""}
-          </button>
-          <div style={{ flex: 1 }}>
-            {editingField === "title" ? (
-              <input
-                autoFocus
-                defaultValue={task.title}
-                onBlur={(e) => saveField("title", e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                style={{ ...editInputStyle, fontSize: "1.25rem", fontWeight: 700 }}
-              />
-            ) : (
-              <h3
-                onClick={() => setEditingField("title")}
-                style={{
-                  margin: 0,
-                  fontSize: "1.25rem",
-                  cursor: "pointer",
-                  textDecoration: task.status === "completed" ? "line-through" : "none",
-                  opacity: task.status === "completed" ? 0.6 : 1,
-                }}
-              >
-                {task.title}
-              </h3>
-            )}
-          </div>
-        </div>
-
-        {/* Description */}
-        <div style={{ marginBottom: "1rem", marginLeft: "2.25rem" }}>
-          {editingField === "description" ? (
-            <textarea
-              autoFocus
-              defaultValue={task.description || ""}
-              onBlur={(e) => saveField("description", e.target.value || null)}
-              rows={2}
-              style={{ ...editInputStyle, resize: "vertical" }}
-            />
+    <Dialog.Root open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/40 dark:bg-black/60 z-50 animate-fade-in" />
+        <Dialog.Content className="fixed top-0 right-0 h-full w-full max-w-md bg-white dark:bg-zinc-900 shadow-2xl z-50 animate-slide-in-right outline-none overflow-y-auto">
+          {loading || !task ? (
+            <div className="flex items-center justify-center h-full">
+              <span className="text-sm text-zinc-400">Loading...</span>
+            </div>
           ) : (
-            <div
-              onClick={() => setEditingField("description")}
-              style={{ color: task.description ? "#333" : "#bbb", fontSize: "0.9rem", cursor: "pointer", minHeight: "1.5rem" }}
-            >
-              {task.description || "Add description..."}
-            </div>
-          )}
-        </div>
+            <div className="p-5">
+              {/* Header */}
+              <div className="flex justify-between items-center mb-4">
+                <Dialog.Close asChild>
+                  <button className="p-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors bg-transparent border-0 cursor-pointer">
+                    <X className="w-4 h-4" />
+                  </button>
+                </Dialog.Close>
+                <span className="text-xs text-zinc-400 font-medium uppercase tracking-wide">
+                  {task.status === "completed" ? "Completed" : "Open"}
+                </span>
+              </div>
 
-        <div style={dividerStyle} />
-
-        {/* Metadata rows */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.1rem" }}>
-          {/* Source */}
-          <MetadataRow icon={"\u{1F4C2}"} label="Source" value={task.source} />
-
-          {/* Due date */}
-          <div style={metaRowStyle}>
-            <span style={metaIconStyle}>{"\u{1F4C5}"}</span>
-            <span style={metaLabelStyle}>Due</span>
-            <div style={{ flex: 1 }}>
-              <input
-                type="date"
-                value={task.due_date || ""}
-                onChange={(e) => saveField("due_date", e.target.value || null)}
-                style={{ ...metaValueStyle, border: "none", background: "transparent", cursor: "pointer", fontFamily: "inherit" }}
-              />
-            </div>
-          </div>
-
-          {/* Priority */}
-          <div style={metaRowStyle}>
-            <span style={{ ...metaIconStyle, color: PRIORITY_COLORS[task.priority] }}>{"\u{1F6A9}"}</span>
-            <span style={metaLabelStyle}>Priority</span>
-            <select
-              value={task.priority}
-              onChange={(e) => saveField("priority", e.target.value)}
-              style={{ ...metaValueStyle, border: "none", background: "transparent", cursor: "pointer", fontFamily: "inherit" }}
-            >
-              <option value="none">None</option>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
-          </div>
-
-          {/* Owner */}
-          <div style={metaRowStyle}>
-            <span style={metaIconStyle}>{"\u{1F464}"}</span>
-            <span style={metaLabelStyle}>Owner</span>
-            {editingField === "owner" ? (
-              <input
-                autoFocus
-                defaultValue={task.owner || ""}
-                onBlur={(e) => saveField("owner", e.target.value || null)}
-                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                style={{ ...editInputStyle, flex: 1, fontSize: "0.9rem" }}
-              />
-            ) : (
-              <span
-                onClick={() => setEditingField("owner")}
-                style={{ ...metaValueStyle, cursor: "pointer", color: task.owner ? "#333" : "#bbb" }}
-              >
-                {task.owner || "Assign..."}
-              </span>
-            )}
-          </div>
-
-          {/* Labels */}
-          <div style={metaRowStyle}>
-            <span style={metaIconStyle}>{"\u{1F3F7}\uFE0F"}</span>
-            <span style={metaLabelStyle}>Labels</span>
-            <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: "0.3rem", alignItems: "center" }}>
-              {task.labels.map((label) => (
-                <span
-                  key={label}
+              {/* Title + Status */}
+              <div className="flex items-start gap-3 mb-3">
+                <button
+                  onClick={toggleStatus}
+                  className="w-6 h-6 rounded-full border-2 shrink-0 mt-0.5 p-0 flex items-center justify-center cursor-pointer bg-transparent text-white text-xs"
                   style={{
-                    background: "#f3f4f6",
-                    padding: "0.15rem 0.5rem",
-                    borderRadius: "12px",
-                    fontSize: "0.8rem",
-                    color: "#555",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.3rem",
+                    borderColor: PRIORITY_COLORS[task.priority] || "#d1d5db",
+                    background: task.status === "completed" ? PRIORITY_COLORS[task.priority] || "#d1d5db" : "transparent",
                   }}
                 >
-                  {label}
-                  <button
-                    onClick={() => removeLabel(label)}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "#999", fontSize: "0.7rem", padding: 0 }}
-                  >
-                    x
-                  </button>
-                </span>
-              ))}
-              <input
-                placeholder="Add label..."
-                value={labelInput}
-                onChange={(e) => setLabelInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addLabel(); } }}
-                onBlur={() => { if (labelInput.trim()) addLabel(); }}
-                style={{
-                  border: "none",
-                  outline: "none",
-                  fontSize: "0.8rem",
-                  width: "80px",
-                  padding: "0.15rem 0",
-                  background: "transparent",
-                  color: "#999",
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Reminder */}
-          <div style={metaRowStyle}>
-            <span style={metaIconStyle}>{"\u23F0"}</span>
-            <span style={metaLabelStyle}>Reminder</span>
-            <input
-              type="datetime-local"
-              value={task.reminder ? task.reminder.slice(0, 16) : ""}
-              onChange={(e) => saveField("reminder", e.target.value ? new Date(e.target.value).toISOString() : null)}
-              style={{ ...metaValueStyle, border: "none", background: "transparent", cursor: "pointer", fontFamily: "inherit" }}
-            />
-          </div>
-
-          {/* Location */}
-          <div style={metaRowStyle}>
-            <span style={metaIconStyle}>{"\u{1F4CD}"}</span>
-            <span style={metaLabelStyle}>Location</span>
-            {editingField === "location" ? (
-              <input
-                autoFocus
-                defaultValue={task.location || ""}
-                onBlur={(e) => saveField("location", e.target.value || null)}
-                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                style={{ ...editInputStyle, flex: 1, fontSize: "0.9rem" }}
-              />
-            ) : (
-              <span
-                onClick={() => setEditingField("location")}
-                style={{ ...metaValueStyle, cursor: "pointer", color: task.location ? "#333" : "#bbb" }}
-              >
-                {task.location || "Add location..."}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Blocked by */}
-        <div style={dividerStyle} />
-        <div style={metaRowStyle}>
-          <span style={metaIconStyle}>{"\u{1F512}"}</span>
-          <span style={metaLabelStyle}>Blocked by</span>
-          <div style={{ flex: 1 }}>
-            {task.blocked_by_workflow_name || task.blocked_by_task_title ? (
-              <>
-                <span style={{
-                  background: task.is_blocked ? "#fef2f2" : "#dcfce7",
-                  color: task.is_blocked ? "#dc2626" : "#166534",
-                  padding: "0.15rem 0.5rem",
-                  borderRadius: "4px",
-                  fontSize: "0.82rem",
-                }}>
-                  {task.is_blocked ? "\u{1F534}" : "\u{1F7E2}"} {task.blocked_by_workflow_name || task.blocked_by_task_title}
-                </span>
-                {!task.is_blocked && <span style={{ color: "#888", fontSize: "0.78rem", marginLeft: "0.5rem" }}>completed</span>}
-                <button
-                  onClick={() => saveField("blocked_by_workflow_id", "00000000-0000-0000-0000-000000000000")}
-                  style={{ marginLeft: "0.5rem", background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: "0.75rem" }}
-                >
-                  remove
+                  {task.status === "completed" ? "\u2713" : ""}
                 </button>
-              </>
-            ) : availableWorkflows.length > 0 ? (
-              <select
-                value=""
-                onChange={(e) => { if (e.target.value) saveField("blocked_by_workflow_id", e.target.value); }}
-                style={{ border: "1px solid #e5e7eb", borderRadius: "4px", padding: "0.2rem 0.4rem", fontSize: "0.82rem", color: "#888", background: "transparent", cursor: "pointer", fontFamily: "inherit" }}
-              >
-                <option value="">Add dependency...</option>
-                {availableWorkflows.map((w) => (
-                  <option key={w.id} value={w.id}>{w.name}</option>
-                ))}
-              </select>
-            ) : (
-              <span style={{ color: "#ccc", fontSize: "0.82rem" }}>None</span>
-            )}
-          </div>
-        </div>
+                <div className="flex-1">
+                  {editingField === "title" ? (
+                    <input
+                      autoFocus
+                      defaultValue={task.title}
+                      onBlur={(e) => saveField("title", e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                      className={editInputCls + " text-lg font-bold"}
+                    />
+                  ) : (
+                    <h3
+                      onClick={() => setEditingField("title")}
+                      className={`m-0 text-lg font-bold cursor-pointer text-zinc-900 dark:text-zinc-100 ${
+                        task.status === "completed" ? "line-through opacity-60" : ""
+                      }`}
+                    >
+                      {task.title}
+                    </h3>
+                  )}
+                </div>
+              </div>
 
-        {/* Workflow info */}
-        {task.workflow_name && (
-          <>
-            <div style={dividerStyle} />
-            <div style={metaRowStyle}>
-              <span style={metaIconStyle}>{"\u{1F4CB}"}</span>
-              <span style={metaLabelStyle}>Workflow</span>
-              <span style={metaValueStyle}>{task.workflow_name}</span>
+              {/* Description */}
+              <div className="mb-4 ml-9">
+                {editingField === "description" ? (
+                  <textarea
+                    autoFocus
+                    defaultValue={task.description || ""}
+                    onBlur={(e) => saveField("description", e.target.value || null)}
+                    rows={2}
+                    className={editInputCls + " resize-y"}
+                  />
+                ) : (
+                  <div
+                    onClick={() => setEditingField("description")}
+                    className={`text-sm cursor-pointer min-h-[1.5rem] ${task.description ? "text-zinc-700 dark:text-zinc-300" : "text-zinc-400"}`}
+                  >
+                    {task.description || "Add description..."}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-zinc-100 dark:border-zinc-800 my-3" />
+
+              {/* Metadata rows */}
+              <div className="flex flex-col gap-0.5">
+                {/* Source */}
+                <div className={metaRowCls}>
+                  <FolderOpen className={metaIconCls} />
+                  <span className={metaLabelCls}>Source</span>
+                  <span className={metaValueCls}>{task.source}</span>
+                </div>
+
+                {/* Due date */}
+                <div className={metaRowCls}>
+                  <Calendar className={metaIconCls} />
+                  <span className={metaLabelCls}>Due</span>
+                  <input
+                    type="date"
+                    value={task.due_date || ""}
+                    onChange={(e) => saveField("due_date", e.target.value || null)}
+                    className="flex-1 text-sm bg-transparent border-0 outline-none cursor-pointer text-zinc-900 dark:text-zinc-100"
+                  />
+                </div>
+
+                {/* Priority */}
+                <div className={metaRowCls}>
+                  <Flag className={metaIconCls} style={{ color: PRIORITY_COLORS[task.priority] }} />
+                  <span className={metaLabelCls}>Priority</span>
+                  <select
+                    value={task.priority}
+                    onChange={(e) => saveField("priority", e.target.value)}
+                    className="flex-1 text-sm bg-transparent border-0 outline-none cursor-pointer text-zinc-900 dark:text-zinc-100"
+                  >
+                    <option value="none">None</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+
+                {/* Owner */}
+                <div className={metaRowCls}>
+                  <User className={metaIconCls} />
+                  <span className={metaLabelCls}>Owner</span>
+                  {editingField === "owner" ? (
+                    <input
+                      autoFocus
+                      defaultValue={task.owner || ""}
+                      onBlur={(e) => saveField("owner", e.target.value || null)}
+                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                      className={editInputCls + " flex-1"}
+                    />
+                  ) : (
+                    <span
+                      onClick={() => setEditingField("owner")}
+                      className={`flex-1 text-sm cursor-pointer ${task.owner ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400"}`}
+                    >
+                      {task.owner || "Assign..."}
+                    </span>
+                  )}
+                </div>
+
+                {/* Labels */}
+                <div className={metaRowCls}>
+                  <Tag className={metaIconCls} />
+                  <span className={metaLabelCls}>Labels</span>
+                  <div className="flex-1 flex flex-wrap gap-1.5 items-center">
+                    {task.labels.map((label) => (
+                      <span
+                        key={label}
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
+                      >
+                        {label}
+                        <button
+                          onClick={() => removeLabel(label)}
+                          className="p-0 bg-transparent border-0 cursor-pointer text-zinc-400 hover:text-red-500 text-[10px]"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      placeholder="Add label..."
+                      value={labelInput}
+                      onChange={(e) => setLabelInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addLabel(); } }}
+                      onBlur={() => { if (labelInput.trim()) addLabel(); }}
+                      className="border-0 outline-none text-xs w-20 py-0.5 bg-transparent text-zinc-400 placeholder:text-zinc-400"
+                    />
+                  </div>
+                </div>
+
+                {/* Reminder */}
+                <div className={metaRowCls}>
+                  <Bell className={metaIconCls} />
+                  <span className={metaLabelCls}>Reminder</span>
+                  <input
+                    type="datetime-local"
+                    value={task.reminder ? task.reminder.slice(0, 16) : ""}
+                    onChange={(e) => saveField("reminder", e.target.value ? new Date(e.target.value).toISOString() : null)}
+                    className="flex-1 text-sm bg-transparent border-0 outline-none cursor-pointer text-zinc-900 dark:text-zinc-100"
+                  />
+                </div>
+
+                {/* Location */}
+                <div className={metaRowCls}>
+                  <MapPin className={metaIconCls} />
+                  <span className={metaLabelCls}>Location</span>
+                  {editingField === "location" ? (
+                    <input
+                      autoFocus
+                      defaultValue={task.location || ""}
+                      onBlur={(e) => saveField("location", e.target.value || null)}
+                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                      className={editInputCls + " flex-1"}
+                    />
+                  ) : (
+                    <span
+                      onClick={() => setEditingField("location")}
+                      className={`flex-1 text-sm cursor-pointer ${task.location ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400"}`}
+                    >
+                      {task.location || "Add location..."}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Blocked by */}
+              <div className="border-t border-zinc-100 dark:border-zinc-800 my-3" />
+              <div className={metaRowCls}>
+                <Lock className={metaIconCls} />
+                <span className={metaLabelCls}>Blocked by</span>
+                <div className="flex-1">
+                  {task.blocked_by_workflow_name || task.blocked_by_task_title ? (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        task.is_blocked
+                          ? "bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400"
+                          : "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400"
+                      }`}>
+                        {task.blocked_by_workflow_name || task.blocked_by_task_title}
+                      </span>
+                      {!task.is_blocked && <span className="text-xs text-zinc-400">completed</span>}
+                      <button
+                        onClick={() => saveField("blocked_by_workflow_id", "00000000-0000-0000-0000-000000000000")}
+                        className="text-xs text-zinc-400 hover:text-red-500 bg-transparent border-0 cursor-pointer transition-colors"
+                      >
+                        remove
+                      </button>
+                    </div>
+                  ) : availableWorkflows.length > 0 ? (
+                    <select
+                      value=""
+                      onChange={(e) => { if (e.target.value) saveField("blocked_by_workflow_id", e.target.value); }}
+                      className="text-sm bg-transparent border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 outline-none cursor-pointer text-zinc-500 dark:text-zinc-400"
+                    >
+                      <option value="">Add dependency...</option>
+                      {availableWorkflows.map((w) => (
+                        <option key={w.id} value={w.id}>{w.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-xs text-zinc-400">None</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Workflow info */}
+              {task.workflow_name && (
+                <>
+                  <div className="border-t border-zinc-100 dark:border-zinc-800 my-3" />
+                  <div className={metaRowCls}>
+                    <GitBranch className={metaIconCls} />
+                    <span className={metaLabelCls}>Workflow</span>
+                    <span className={metaValueCls}>{task.workflow_name}</span>
+                  </div>
+                </>
+              )}
+
+              <div className="border-t border-zinc-100 dark:border-zinc-800 my-3" />
+
+              {/* Notes */}
+              <div className="mb-4">
+                <div className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2">Notes</div>
+                <textarea
+                  value={task.notes || ""}
+                  onChange={(e) => setTask({ ...task, notes: e.target.value })}
+                  onBlur={(e) => saveField("notes", e.target.value || null)}
+                  placeholder="Add notes..."
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-transparent text-zinc-900 dark:text-zinc-100 outline-none resize-y focus:ring-2 focus:ring-violet-500 focus:border-transparent placeholder:text-zinc-400"
+                />
+              </div>
+
+              <div className="border-t border-zinc-100 dark:border-zinc-800 my-3" />
+
+              {/* Footer */}
+              <div className="flex justify-between items-center text-xs text-zinc-400">
+                <div>
+                  {task.capture_id ? (
+                    <Link to={`/captures/${task.capture_id}`} className="text-violet-600 dark:text-violet-400 no-underline hover:underline" onClick={onClose}>
+                      View capture
+                    </Link>
+                  ) : (
+                    <span className="text-zinc-400 italic">Source removed</span>
+                  )}
+                </div>
+                <div>Created {new Date(task.created_at).toLocaleDateString()}</div>
+              </div>
             </div>
-          </>
-        )}
-
-        <div style={dividerStyle} />
-
-        {/* Notes */}
-        <div style={{ marginBottom: "1rem" }}>
-          <div style={{ fontSize: "0.8rem", color: "#999", marginBottom: "0.4rem" }}>Notes</div>
-          <textarea
-            value={task.notes || ""}
-            onChange={(e) => setTask({ ...task, notes: e.target.value })}
-            onBlur={(e) => saveField("notes", e.target.value || null)}
-            placeholder="Add notes..."
-            rows={3}
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              border: "1px solid #e5e7eb",
-              borderRadius: "6px",
-              padding: "0.5rem",
-              fontSize: "0.9rem",
-              fontFamily: "inherit",
-              resize: "vertical",
-              outline: "none",
-            }}
-          />
-        </div>
-
-        <div style={dividerStyle} />
-
-        {/* Footer */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "#999", fontSize: "0.8rem" }}>
-          <div>
-            {task.capture_id ? (
-              <Link to={`/captures/${task.capture_id}`} style={{ color: "#2563eb" }} onClick={onClose}>
-                View capture
-              </Link>
-            ) : (
-              <span style={{ color: "#ccc", fontStyle: "italic" }}>Source removed</span>
-            )}
-          </div>
-          <div>Created {new Date(task.created_at).toLocaleDateString()}</div>
-        </div>
-      </div>
-    </div>
+          )}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
-
-function MetadataRow({ icon, label, value }: { icon: string; label: string; value: string }) {
-  return (
-    <div style={metaRowStyle}>
-      <span style={metaIconStyle}>{icon}</span>
-      <span style={metaLabelStyle}>{label}</span>
-      <span style={metaValueStyle}>{value}</span>
-    </div>
-  );
-}
-
-// --- Styles ---
-
-const backdropStyle: React.CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(0,0,0,0.4)",
-  display: "flex",
-  alignItems: "flex-end",
-  justifyContent: "center",
-  zIndex: 1000,
-  animation: "fadeIn 0.15s ease-out",
-};
-
-const modalStyle: React.CSSProperties = {
-  background: "white",
-  borderRadius: "16px 16px 0 0",
-  width: "100%",
-  maxWidth: 520,
-  maxHeight: "85vh",
-  overflowY: "auto",
-  padding: "1.25rem",
-  boxShadow: "0 -4px 24px rgba(0,0,0,0.15)",
-  animation: "slideUp 0.2s ease-out",
-};
-
-const closeBtnStyle: React.CSSProperties = {
-  background: "none",
-  border: "none",
-  fontSize: "1.1rem",
-  cursor: "pointer",
-  color: "#999",
-  padding: "0.25rem 0.5rem",
-  borderRadius: "4px",
-};
-
-const dividerStyle: React.CSSProperties = {
-  borderTop: "1px solid #f0f0f0",
-  margin: "0.75rem 0",
-};
-
-const metaRowStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: "0.75rem",
-  padding: "0.5rem 0",
-};
-
-const metaIconStyle: React.CSSProperties = {
-  width: "1.25rem",
-  textAlign: "center",
-  fontSize: "0.9rem",
-  flexShrink: 0,
-};
-
-const metaLabelStyle: React.CSSProperties = {
-  width: "5rem",
-  fontSize: "0.85rem",
-  color: "#888",
-  flexShrink: 0,
-};
-
-const metaValueStyle: React.CSSProperties = {
-  flex: 1,
-  fontSize: "0.9rem",
-  color: "#333",
-};
-
-const editInputStyle: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #d1d5db",
-  borderRadius: "4px",
-  padding: "0.3rem 0.5rem",
-  fontSize: "0.9rem",
-  fontFamily: "inherit",
-  outline: "none",
-  boxSizing: "border-box",
-};

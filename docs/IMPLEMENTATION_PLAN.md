@@ -186,7 +186,23 @@
 - [x] Dependency picker dropdown in TaskDetailModal
 - [x] Rate limit bumped to 120 req/min
 
-**Deliverable:** A user can paste text, drag images/documents, or use manual entry in the web app. AI extracts actions, groups sequential steps into workflows with dependency tracking, and infers missing intermediate steps. Users review (with drag-and-drop reordering), approve, and manage tasks in a polished Todoist-style UI with detail modals, labels, dependencies, and sequential step locking — all with source traceability.
+**Epic 4.10: Linear/Notion UI redesign**
+- [x] Tailwind CSS v4 with @tailwindcss/vite plugin, class-based dark mode (@custom-variant)
+- [x] Lucide React icons replacing all emoji/unicode icons across all components
+- [x] Radix UI primitives: Dialog (TaskDetailModal), AlertDialog (ConfirmDialog), accessible focus traps
+- [x] Inter font via Google Fonts
+- [x] Dark/light mode toggle with ThemeContext (localStorage persistence, .dark class strategy)
+- [x] Collapsible sidebar navigation (Linear-style, w-56 to w-14, localStorage persistence)
+- [x] TaskDetailModal converted to right-side panel (slide-in-from-right, Notion-style metadata rows)
+- [x] ConfirmDialog component replacing all window.confirm() calls (Trash, Settings)
+- [x] All inline styles converted to Tailwind (only @dnd-kit transforms and dynamic priority colors remain)
+- [x] Keyframe animations: fadeIn, slideUp, slideInRight with utility classes
+- [x] Route-level code splitting: React.lazy + Suspense (initial JS 117KB → 73KB gzipped, 38% reduction)
+- [x] React.memo on CaptureCard component to prevent sibling re-renders
+- [x] Scrollbar styling for dark/light modes
+- [x] All 8 frontend tests passing, TypeScript clean
+
+**Deliverable:** A user can paste text, drag images/documents, or use manual entry in the web app. AI extracts actions, groups sequential steps into workflows with dependency tracking, and infers missing intermediate steps. Users review (with drag-and-drop reordering), approve, and manage tasks in a polished Linear/Notion-style UI with dark mode, sidebar navigation, slide-in detail panels, labels, dependencies, and sequential step locking — all with source traceability.
 
 ---
 

@@ -10,9 +10,10 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { GripVertical } from "lucide-react";
 import { api } from "../api/client";
 import { useDndSensors } from "../hooks/useDndSensors";
-import type { Extraction, ReviewDecision } from "../types";
+import type { Extraction, ReviewDecision, WorkflowStep, ExtractedWorkflow } from "../types";
 
 interface ReviewPanelProps {
   captureId: string;
@@ -29,51 +30,31 @@ function SortableReviewStep({ id, index, step, isLast, onEditTitle }: {
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    display: "flex",
-    alignItems: "center",
-    gap: "0.5rem",
-    padding: "0.35rem 0",
-    borderBottom: isLast ? "none" : "1px solid #eee",
-    opacity: isDragging ? 0.5 : 1,
-    background: isDragging ? "#f0f4ff" : "transparent",
-  };
-
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
-      <span
-        {...listeners}
-        style={{ cursor: "grab", color: "#ccc", fontSize: "0.9rem", padding: "0 0.2rem", userSelect: "none", touchAction: "none" }}
-        title="Drag to reorder"
-      >
-        &#x2807;
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`flex items-center gap-2 py-1.5 ${!isLast ? "border-b border-zinc-100 dark:border-zinc-800" : ""} ${isDragging ? "opacity-50 bg-blue-50 dark:bg-blue-950/20" : ""}`}
+      {...attributes}
+    >
+      <span {...listeners} className="cursor-grab text-zinc-300 dark:text-zinc-600 select-none touch-none" title="Drag to reorder">
+        <GripVertical className="w-3.5 h-3.5" />
       </span>
-      <span style={{ color: "#999", fontSize: "0.8rem", width: "1.5rem", textAlign: "center" }}>{index + 1}.</span>
+      <span className="text-xs text-zinc-400 w-5 text-center">{index + 1}.</span>
       <input
         type="text"
         value={step.title}
         onChange={(e) => onEditTitle(e.target.value)}
-        style={{
-          flex: 1,
-          border: "none",
-          borderBottom: "1px solid transparent",
-          background: "transparent",
-          fontSize: "0.9rem",
-          padding: "0.2rem 0",
-        }}
-        onFocus={(e) => (e.target.style.borderBottomColor = "#2563eb")}
-        onBlur={(e) => (e.target.style.borderBottomColor = "transparent")}
+        className="flex-1 border-0 border-b border-transparent bg-transparent text-sm text-zinc-900 dark:text-zinc-100 py-0.5 outline-none focus:border-b-violet-500"
       />
-      {step.owner && <span style={{ color: "#888", fontSize: "0.75rem" }}>{step.owner}</span>}
+      {step.owner && <span className="text-xs text-zinc-400">{step.owner}</span>}
     </div>
   );
 }
 
 export default function ReviewPanel({ captureId, extraction, onReviewComplete }: ReviewPanelProps) {
   const [decisions, setDecisions] = useState<Record<string, "approve" | "reject">>({});
-  const [workflowEdits, setWorkflowEdits] = useState<Record<number, Workflow>>({});
+  const [workflowEdits, setWorkflowEdits] = useState<Record<number, ExtractedWorkflow>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -81,7 +62,7 @@ export default function ReviewPanel({ captureId, extraction, onReviewComplete }:
     setDecisions((prev) => ({ ...prev, [key]: prev[key] === action ? undefined! : action }));
   };
 
-  const getWorkflow = (index: number): Workflow => {
+  const getWorkflow = (index: number): ExtractedWorkflow => {
     return workflowEdits[index] || (extraction.workflows || [])[index];
   };
 
@@ -112,15 +93,12 @@ export default function ReviewPanel({ captureId, extraction, onReviewComplete }:
       if (!action) continue;
       const [type, indexStr] = key.split("-");
       const index = parseInt(indexStr);
-
       if (type === "workflow" && action === "approve" && workflowEdits[index]) {
-        // Send edited workflow data
         items.push({ item_type: "workflow", item_index: index, action: "edit", edited_value: workflowEdits[index] as unknown as Record<string, unknown> });
       } else {
         items.push({ item_type: type, item_index: index, action });
       }
     }
-
     if (items.length === 0) return;
 
     setSubmitting(true);
@@ -147,54 +125,27 @@ export default function ReviewPanel({ captureId, extraction, onReviewComplete }:
     setDecisions(all);
   };
 
+  const actionBtnCls = (active: boolean, color: "green" | "red") => {
+    if (active) {
+      return color === "green"
+        ? "px-2 py-1 text-xs font-medium rounded bg-emerald-600 text-white border-0 cursor-pointer transition-colors"
+        : "px-2 py-1 text-xs font-medium rounded bg-red-600 text-white border-0 cursor-pointer transition-colors";
+    }
+    return "px-2 py-1 text-xs font-medium rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border-0 cursor-pointer hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors";
+  };
+
   const renderItem = (type: string, index: number, label: string, detail?: string) => {
     const key = `${type}-${index}`;
     const decision = decisions[key];
 
     return (
-      <div
-        key={key}
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          gap: "0.75rem",
-          padding: "0.5rem 0",
-          borderBottom: "1px solid #eee",
-          opacity: decision === "reject" ? 0.5 : 1,
-        }}
-      >
-        <div style={{ flex: 1 }}>
-          <strong>{label}</strong>
-          {detail && <div style={{ color: "#666", fontSize: "0.85rem" }}>{detail}</div>}
+      <div key={key} className={`flex items-start gap-3 py-2 border-b border-zinc-100 dark:border-zinc-800 ${decision === "reject" ? "opacity-50" : ""}`}>
+        <div className="flex-1 min-w-0">
+          <strong className="text-sm text-zinc-900 dark:text-zinc-100">{label}</strong>
+          {detail && <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{detail}</div>}
         </div>
-        <button
-          onClick={() => toggle(key, "approve")}
-          style={{
-            padding: "0.25rem 0.5rem",
-            fontSize: "0.8rem",
-            background: decision === "approve" ? "#22c55e" : "#f0f0f0",
-            color: decision === "approve" ? "white" : "#333",
-            border: "none",
-            borderRadius: "3px",
-            cursor: "pointer",
-          }}
-        >
-          Approve
-        </button>
-        <button
-          onClick={() => toggle(key, "reject")}
-          style={{
-            padding: "0.25rem 0.5rem",
-            fontSize: "0.8rem",
-            background: decision === "reject" ? "#ef4444" : "#f0f0f0",
-            color: decision === "reject" ? "white" : "#333",
-            border: "none",
-            borderRadius: "3px",
-            cursor: "pointer",
-          }}
-        >
-          Reject
-        </button>
+        <button onClick={() => toggle(key, "approve")} className={actionBtnCls(decision === "approve", "green")}>Approve</button>
+        <button onClick={() => toggle(key, "reject")} className={actionBtnCls(decision === "reject", "red")}>Reject</button>
       </div>
     );
   };
@@ -207,58 +158,30 @@ export default function ReviewPanel({ captureId, extraction, onReviewComplete }:
     return (
       <div
         key={key}
-        style={{
-          marginBottom: "0.75rem",
-          padding: "0.75rem",
-          border: decision === "approve" ? "2px solid #22c55e" : decision === "reject" ? "2px solid #ef4444" : "1px solid #ddd",
-          borderRadius: "6px",
-          opacity: decision === "reject" ? 0.5 : 1,
-          background: "#fafafa",
-        }}
+        className={`mb-3 p-3 rounded-lg border-2 transition-colors ${
+          decision === "approve"
+            ? "border-emerald-500 dark:border-emerald-600 bg-emerald-50/50 dark:bg-emerald-950/20"
+            : decision === "reject"
+            ? "border-red-500 dark:border-red-600 opacity-50"
+            : "border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50"
+        }`}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+        <div className="flex items-center justify-between mb-2">
           <div>
-            <strong style={{ fontSize: "1rem" }}>{wf.name}</strong>
-            {wf.description && <div style={{ color: "#666", fontSize: "0.85rem" }}>{wf.description}</div>}
-            <div style={{ color: "#999", fontSize: "0.8rem" }}>{wf.steps.length} step{wf.steps.length !== 1 ? "s" : ""}</div>
+            <strong className="text-sm text-zinc-900 dark:text-zinc-100">{wf.name}</strong>
+            {wf.description && <div className="text-xs text-zinc-500 dark:text-zinc-400">{wf.description}</div>}
+            <div className="text-xs text-zinc-400">{wf.steps.length} step{wf.steps.length !== 1 ? "s" : ""}</div>
           </div>
-          <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
-            <button
-              onClick={() => toggle(key, "approve")}
-              style={{
-                padding: "0.3rem 0.6rem",
-                fontSize: "0.8rem",
-                background: decision === "approve" ? "#22c55e" : "#f0f0f0",
-                color: decision === "approve" ? "white" : "#333",
-                border: "none",
-                borderRadius: "3px",
-                cursor: "pointer",
-              }}
-            >
-              Approve
-            </button>
-            <button
-              onClick={() => toggle(key, "reject")}
-              style={{
-                padding: "0.3rem 0.6rem",
-                fontSize: "0.8rem",
-                background: decision === "reject" ? "#ef4444" : "#f0f0f0",
-                color: decision === "reject" ? "white" : "#333",
-                border: "none",
-                borderRadius: "3px",
-                cursor: "pointer",
-              }}
-            >
-              Reject
-            </button>
+          <div className="flex gap-2 shrink-0">
+            <button onClick={() => toggle(key, "approve")} className={actionBtnCls(decision === "approve", "green")}>Approve</button>
+            <button onClick={() => toggle(key, "reject")} className={actionBtnCls(decision === "reject", "red")}>Reject</button>
           </div>
         </div>
 
-        {/* Steps list — drag to reorder */}
-        <div style={{ marginLeft: "0.5rem" }}>
+        <div className="ml-2">
           <DndContext sensors={reviewSensors} collisionDetection={closestCenter} onDragEnd={handleStepDragEnd(wfIndex)}>
-            <SortableContext items={wf.steps.map((_, i) => i)} strategy={verticalListSortingStrategy}>
-              {wf.steps.map((step, si) => (
+            <SortableContext items={wf.steps.map((_: WorkflowStep, i: number) => i)} strategy={verticalListSortingStrategy}>
+              {wf.steps.map((step: WorkflowStep, si: number) => (
                 <SortableReviewStep
                   key={si}
                   id={si}
@@ -276,40 +199,36 @@ export default function ReviewPanel({ captureId, extraction, onReviewComplete }:
   };
 
   const workflows = extraction.workflows || [];
-
-  const hasItems =
-    extraction.tasks.length > 0 ||
-    workflows.length > 0 ||
-    extraction.next_steps.length > 0 ||
-    extraction.follow_ups.length > 0;
+  const hasItems = extraction.tasks.length > 0 || workflows.length > 0 || extraction.next_steps.length > 0 || extraction.follow_ups.length > 0;
 
   return (
     <div>
       {extraction.summary && (
-        <div style={{ marginBottom: "1rem", padding: "0.75rem", background: "#f8f9fa", borderRadius: "4px" }}>
-          <strong>Summary:</strong> {extraction.summary}
+        <div className="mb-4 p-3 bg-zinc-100 dark:bg-zinc-800/50 rounded-lg">
+          <strong className="text-sm text-zinc-900 dark:text-zinc-100">Summary:</strong>{" "}
+          <span className="text-sm text-zinc-700 dark:text-zinc-300">{extraction.summary}</span>
         </div>
       )}
 
       {extraction.blockers.length > 0 && (
-        <div style={{ marginBottom: "1rem" }}>
-          <h4 style={{ margin: "0 0 0.5rem" }}>Blockers</h4>
+        <div className="mb-4">
+          <h4 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">Blockers</h4>
           {extraction.blockers.map((b, i) => (
-            <div key={i} style={{ color: "#dc2626", padding: "0.25rem 0" }}>{b}</div>
+            <div key={i} className="text-sm text-red-600 dark:text-red-400 py-1">{b}</div>
           ))}
         </div>
       )}
 
       {workflows.length > 0 && (
-        <div style={{ marginBottom: "1rem" }}>
-          <h4 style={{ margin: "0 0 0.5rem" }}>Workflows</h4>
+        <div className="mb-4">
+          <h4 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">Workflows</h4>
           {workflows.map((_, i) => renderWorkflow(i))}
         </div>
       )}
 
       {extraction.tasks.length > 0 && (
-        <div style={{ marginBottom: "1rem" }}>
-          <h4 style={{ margin: "0 0 0.5rem" }}>Tasks</h4>
+        <div className="mb-4">
+          <h4 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">Tasks</h4>
           {extraction.tasks.map((t, i) =>
             renderItem("task", i, t.title, [t.owner && `Owner: ${t.owner}`, t.due_date && `Due: ${t.due_date}`, t.priority && t.priority !== "none" && `Priority: ${t.priority}`].filter(Boolean).join(" | "))
           )}
@@ -317,15 +236,15 @@ export default function ReviewPanel({ captureId, extraction, onReviewComplete }:
       )}
 
       {extraction.next_steps.length > 0 && (
-        <div style={{ marginBottom: "1rem" }}>
-          <h4 style={{ margin: "0 0 0.5rem" }}>Next Steps</h4>
+        <div className="mb-4">
+          <h4 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">Next Steps</h4>
           {extraction.next_steps.map((s, i) => renderItem("next_step", i, s))}
         </div>
       )}
 
       {extraction.follow_ups.length > 0 && (
-        <div style={{ marginBottom: "1rem" }}>
-          <h4 style={{ margin: "0 0 0.5rem" }}>Follow-ups</h4>
+        <div className="mb-4">
+          <h4 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">Follow-ups</h4>
           {extraction.follow_ups.map((f, i) =>
             renderItem("follow_up", i, f.description, f.owner ? `Owner: ${f.owner}` : undefined)
           )}
@@ -333,23 +252,21 @@ export default function ReviewPanel({ captureId, extraction, onReviewComplete }:
       )}
 
       {hasItems ? (
-        <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
-          <button onClick={approveAll} style={{ padding: "0.5rem 1rem" }}>
+        <div className="flex gap-2 mt-4">
+          <button onClick={approveAll} className="px-3 py-1.5 text-sm font-medium rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 border-0 cursor-pointer transition-colors">
             Approve All
           </button>
           <button
             onClick={handleSubmit}
             disabled={submitting || Object.keys(decisions).length === 0}
-            style={{ padding: "0.5rem 1rem", cursor: submitting ? "wait" : "pointer" }}
+            className="px-3 py-1.5 text-sm font-medium rounded-md bg-violet-600 hover:bg-violet-700 text-white disabled:bg-zinc-300 dark:disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed border-0 cursor-pointer transition-colors"
           >
             {submitting ? "Submitting..." : "Submit Review"}
           </button>
         </div>
       ) : (
-        <div style={{ marginTop: "1rem" }}>
-          <p style={{ color: "#888", fontSize: "0.85rem", marginBottom: "0.5rem" }}>
-            No actionable items extracted. You can mark this capture as reviewed.
-          </p>
+        <div className="mt-4">
+          <p className="text-sm text-zinc-400 mb-2">No actionable items extracted. You can mark this capture as reviewed.</p>
           <button
             onClick={async () => {
               setSubmitting(true);
@@ -357,9 +274,7 @@ export default function ReviewPanel({ captureId, extraction, onReviewComplete }:
               try {
                 await api(`/captures/${captureId}/review`, {
                   method: "PATCH",
-                  body: JSON.stringify({
-                    decisions: [{ item_type: "summary", item_index: 0, action: "approve" }],
-                  }),
+                  body: JSON.stringify({ decisions: [{ item_type: "summary", item_index: 0, action: "approve" }] }),
                 });
                 onReviewComplete();
               } catch (e: unknown) {
@@ -369,21 +284,14 @@ export default function ReviewPanel({ captureId, extraction, onReviewComplete }:
               }
             }}
             disabled={submitting}
-            style={{
-              padding: "0.5rem 1rem",
-              background: "#22c55e",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: submitting ? "wait" : "pointer",
-            }}
+            className="px-3 py-1.5 text-sm font-medium rounded-md bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-zinc-300 disabled:cursor-not-allowed border-0 cursor-pointer transition-colors"
           >
             {submitting ? "Marking..." : "Mark as Reviewed"}
           </button>
         </div>
       )}
 
-      {error && <p style={{ color: "red", marginTop: "0.5rem" }}>{error}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-400 mt-2">{error}</p>}
     </div>
   );
 }

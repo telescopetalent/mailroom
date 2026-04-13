@@ -12,7 +12,7 @@ Mailroom is a routing layer first and an AI action engine second.
 
 ## Current Status
 
-**Phases 1–6 complete. Phase 7 done, Phase 8 done.** The platform has a working backend, frontend, AI extraction pipeline, Chrome extension, Mac desktop drag-and-drop app, connectors for email and Slack (stubbed for local testing), and a full test suite with production hardening.
+**Phases 1–8 complete. UI redesign complete.** The platform has a working backend, polished frontend (Linear/Notion-style dark mode UI), AI extraction pipeline, Chrome extension, Mac desktop drag-and-drop app, connectors for email and Slack (stubbed for local testing), and a full test suite with production hardening.
 
 | Phase | Status |
 |-------|--------|
@@ -31,24 +31,28 @@ Mailroom is a routing layer first and an AI action engine second.
 ## What Works Today
 
 ### Web App (localhost)
+- **Linear/Notion-style UI** — dark mode by default, collapsible sidebar navigation, Inter font, Tailwind CSS v4, Lucide icons, Radix UI accessible components
 - **Text capture** — paste text, AI extracts tasks/actions
 - **Image/screenshot capture** — drag or paste a screenshot (email, Slack thread, tweet, document), Claude Vision reads it and extracts actions
 - **Document capture** — drag a PDF or DOCX, text is extracted server-side then analyzed by AI
 - **Manual capture** — structured form for entering tasks, workflows, next steps, blockers, follow-ups
-- **AI/Manual toggle** — switch between AI extraction and manual entry
+- **AI/Manual toggle** — pill-shaped segmented control to switch between AI extraction and manual entry
 - **Workflows** — AI groups sequential tasks into named workflows. Dependent follow-up tasks become the last step (e.g. "update org chart once hiring is complete" becomes step 6). AI infers missing intermediate steps. Approve workflows as a single unit.
 - **Sequential step locking** — workflow steps unlock one at a time as prior steps are completed. Dependent steps show a visual divider "unlocks after above."
 - **Drag-and-drop reordering** — reorder workflow steps on both the Tasks page and during review
-- **Task detail modal** — Todoist-style slide-up modal with editable title, description, owner, due date, priority, labels, reminder, location, notes. Auto-saves on field change.
+- **Task detail side panel** — Linear-style slide-in-from-right panel with editable title, description, owner, due date, priority, labels, reminder, location, notes. Notion-style hover metadata rows. Auto-saves on field change. Radix Dialog for accessibility (focus trap, Escape, aria).
 - **Task dependencies** — tasks can be blocked by a workflow or another task. Blocked tasks show a lock icon and can't be completed until the dependency is done.
 - **Sub-tasks** — AI generates granular checklist items within each workflow step (e.g. "Clean bathroom" → scrub toilet, wipe counters, scrub shower, wipe mirrors). Checking off all sub-tasks auto-completes the parent step.
 - **Manual workflow builder** — lock/block toggle per step to create sequential dependencies manually
 - Review and approve/reject extracted items inline from the dashboard
-- Todoist-style capture cards and task rendering with priority-colored circles
+- Capture cards with priority-colored circles, status badges, and hover transitions
 - Tasks page with workflow groups (progress bars, step checkboxes) and standalone tasks
 - Workflow auto-completion when all steps are done, auto-reopen on uncomplete
-- Trash system with configurable retention
+- Trash system with styled confirmation dialogs (Radix AlertDialog) and configurable retention
 - Settings page for trash retention and connected surfaces
+- **Dark/light mode toggle** — persisted to localStorage, class-based dark mode
+- **Route-level code splitting** — React.lazy + Suspense for optimal initial load (73KB gzipped critical path)
+- **Memoized components** — React.memo on CaptureCard to prevent unnecessary re-renders
 
 ### Chrome Extension (Manifest V3)
 - **Right-click capture** — select text on any page, right-click → "Send to Mailroom"
@@ -247,7 +251,8 @@ Without an API key, captures use the stub provider (returns a placeholder summar
 - **N+1 query optimization** — Batch-loaded extractions, attachment counts, and workflow tasks on list endpoints
 - **Composite DB indexes** — Optimized queries for surface connections, task filtering, and workflow ordering
 - **Shared frontend types** — Centralized TypeScript interfaces, constants, and hooks (zero duplicate definitions)
-- **React performance** — useCallback, useMemo optimizations on event handlers and computed values
+- **React performance** — React.memo on CaptureCard, useCallback on handlers, route-level code splitting with React.lazy
+- **UI framework** — Tailwind CSS v4 (class-based dark mode), Radix UI primitives (Dialog, AlertDialog, Switch), Lucide React icons
 - **7 Alembic migrations** — Full schema versioning
 
 ### Running Tests
@@ -319,7 +324,7 @@ Before any native surface can go live, the backend needs to be publicly deployed
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React + TypeScript (Vite) |
+| Frontend | React + TypeScript (Vite), Tailwind CSS v4, Radix UI, Lucide React |
 | Backend | Python 3.9+ (FastAPI) |
 | Database | PostgreSQL + Alembic migrations |
 | Chrome Extension | Manifest V3 (vanilla JS) |

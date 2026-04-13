@@ -1,19 +1,124 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, memo } from "react";
 import { Link } from "react-router-dom";
+import { Calendar, Link2, Trash2, RotateCcw, Check } from "lucide-react";
 import { api, getApiKey, setApiKey } from "../api/client";
 import CaptureInput from "../components/CaptureInput";
 import ReviewPanel from "../components/ReviewPanel";
 import type { CaptureItem, CaptureList } from "../types";
-}
 
-const btnStyle: React.CSSProperties = {
-  padding: "0.3rem 0.6rem",
-  borderRadius: "4px",
-  cursor: "pointer",
-  fontSize: "0.8rem",
-  flexShrink: 0,
-  border: "none",
-};
+const CaptureCard = memo(function CaptureCard({
+  cap,
+  isExpanded,
+  onToggleExpand,
+  onTrash,
+  onReopen,
+  onReviewComplete,
+}: {
+  cap: CaptureItem;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  onTrash: () => void;
+  onReopen: () => void;
+  onReviewComplete: () => void;
+}) {
+  const statusColor = cap.status === "review" ? "#f59e0b" : cap.status === "approved" ? "#22c55e" : "#d1d5db";
+  const workflowCount = (cap.extraction?.workflows || []).length;
+  const taskCount = (cap.extraction?.tasks || []).length;
+
+  return (
+    <div className="mb-2 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors overflow-hidden">
+      <div className="px-4 py-3">
+        <div className="flex items-start gap-3">
+          <div
+            className="w-5 h-5 rounded-full border-2 shrink-0 mt-0.5 flex items-center justify-center"
+            style={{
+              borderColor: statusColor,
+              background: cap.status === "approved" ? statusColor : "transparent",
+            }}
+          >
+            {cap.status === "approved" && <Check className="w-2.5 h-2.5 text-white" />}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <Link
+              to={`/captures/${cap.id}`}
+              className="block text-sm font-medium text-zinc-900 dark:text-zinc-100 no-underline leading-snug hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
+            >
+              {cap.extraction?.summary || cap.normalized_text?.slice(0, 100) || "Capture"}
+            </Link>
+
+            <div className="flex items-center gap-2.5 mt-1.5 text-xs flex-wrap">
+              <span className="flex items-center gap-1 text-violet-600 dark:text-violet-400">
+                <Calendar className="w-3 h-3" />
+                {new Date(cap.captured_at).toLocaleDateString()}
+              </span>
+              {cap.source !== "web" && <span className="text-zinc-400">{cap.source}</span>}
+              {workflowCount > 0 && (
+                <span className="flex items-center gap-1 text-violet-600 dark:text-violet-400">
+                  <Link2 className="w-3 h-3" />
+                  {workflowCount} workflow{workflowCount > 1 ? "s" : ""}
+                </span>
+              )}
+              {taskCount > 0 && <span className="text-zinc-400">{taskCount} task{taskCount > 1 ? "s" : ""}</span>}
+            </div>
+
+            <div className="flex gap-1.5 mt-1.5 flex-wrap">
+              <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${
+                cap.status === "review"
+                  ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
+                  : cap.status === "approved"
+                  ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
+                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400"
+              }`}>
+                {cap.status}
+              </span>
+              <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
+                {cap.content_type}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex gap-1.5 items-center shrink-0">
+            {cap.status === "review" && (
+              <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleExpand(); }}
+                className="px-2.5 py-1 text-xs font-medium rounded-md bg-violet-600 hover:bg-violet-700 text-white transition-colors cursor-pointer border-0"
+              >
+                Review
+              </button>
+            )}
+            {cap.status === "approved" && (
+              <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onReopen(); }}
+                className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer bg-transparent"
+              >
+                <RotateCcw className="w-3 h-3" />
+                Reopen
+              </button>
+            )}
+            <button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTrash(); }}
+              title="Move to trash"
+              className="flex items-center justify-center w-7 h-7 rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-400 hover:text-red-500 hover:border-red-300 dark:hover:border-red-800 transition-colors cursor-pointer bg-transparent"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {isExpanded && cap.status === "review" && cap.extraction && (
+        <div className="border-t border-zinc-200 dark:border-zinc-800 px-4 py-3 bg-zinc-50 dark:bg-zinc-900/50">
+          <ReviewPanel
+            captureId={cap.id}
+            extraction={cap.extraction}
+            onReviewComplete={onReviewComplete}
+          />
+        </div>
+      )}
+    </div>
+  );
+});
 
 export default function Dashboard() {
   const [connected, setConnected] = useState(!!getApiKey());
@@ -58,16 +163,16 @@ export default function Dashboard() {
 
   if (!connected) {
     return (
-      <div style={{ maxWidth: 400, margin: "4rem auto" }}>
-        <h2>Connect to Mailroom</h2>
-        <p style={{ color: "#666" }}>Enter your API key to get started.</p>
-        {error && <p style={{ color: "red" }}>{error}</p>}
+      <div className="max-w-sm mx-auto mt-24">
+        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Connect to Mailroom</h2>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">Enter your API key to get started.</p>
+        {error && <p className="text-sm text-red-600 dark:text-red-400 mb-3">{error}</p>}
         <input
           type="text"
           placeholder="mr_..."
           value={keyInput}
           onChange={(e) => setKeyInput(e.target.value)}
-          style={{ width: "100%", padding: "0.5rem", marginBottom: "1rem", boxSizing: "border-box" }}
+          className="w-full px-3 py-2 mb-3 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md bg-transparent text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
         />
         <button
           onClick={() => {
@@ -75,7 +180,7 @@ export default function Dashboard() {
             setConnected(true);
             setError("");
           }}
-          style={{ padding: "0.5rem 1rem" }}
+          className="px-4 py-2 text-sm font-medium rounded-md bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors cursor-pointer border-0"
         >
           Connect
         </button>
@@ -84,133 +189,30 @@ export default function Dashboard() {
   }
 
   return (
-    <div style={{ maxWidth: 700 }}>
+    <div>
       {user && (
-        <p style={{ color: "#666" }}>
-          Signed in as <strong>{user.name}</strong> ({user.email})
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+          Signed in as <strong className="text-zinc-900 dark:text-zinc-100">{user.name}</strong> ({user.email})
         </p>
       )}
 
       <CaptureInput onCaptureCreated={loadCaptures} />
 
-      <h3>Recent Captures</h3>
-      {loadingCaptures && <p style={{ color: "#888" }}>Loading...</p>}
-      {!loadingCaptures && captures.length === 0 && <p style={{ color: "#888" }}>No captures yet. Paste some text above to get started.</p>}
+      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-wide mt-8 mb-3">Recent Captures</h3>
+      {loadingCaptures && <p className="text-sm text-zinc-400">Loading...</p>}
+      {!loadingCaptures && captures.length === 0 && <p className="text-sm text-zinc-400">No captures yet. Paste some text above to get started.</p>}
 
-      {captures.map((cap) => {
-        const statusColor = cap.status === "review" ? "#f59e0b" : cap.status === "approved" ? "#22c55e" : "#d1d5db";
-        const workflowCount = (cap.extraction?.workflows || []).length;
-        const taskCount = (cap.extraction?.tasks || []).length;
-
-        return (
-          <div
-            key={cap.id}
-            style={{
-              marginBottom: "0.75rem",
-              background: "white",
-              borderRadius: "10px",
-              border: "1px solid #f0f0f0",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-              overflow: "hidden",
-            }}
-          >
-            {/* Card body */}
-            <div style={{ padding: "0.85rem 1rem" }}>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
-                {/* Status circle */}
-                <div
-                  style={{
-                    width: 20, height: 20, borderRadius: "50%",
-                    border: `2px solid ${statusColor}`,
-                    background: cap.status === "approved" ? statusColor : "transparent",
-                    flexShrink: 0, marginTop: 2,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}
-                >
-                  {cap.status === "approved" && <span style={{ color: "white", fontSize: "0.6rem" }}>{"\u2713"}</span>}
-                </div>
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  {/* Title */}
-                  <Link
-                    to={`/captures/${cap.id}`}
-                    style={{
-                      textDecoration: "none",
-                      color: "#1a1a1a",
-                      fontWeight: 500,
-                      fontSize: "0.95rem",
-                      display: "block",
-                      lineHeight: 1.35,
-                    }}
-                  >
-                    {cap.extraction?.summary || cap.normalized_text?.slice(0, 100) || "Capture"}
-                  </Link>
-
-                  {/* Metadata row */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginTop: "0.35rem", fontSize: "0.78rem", flexWrap: "wrap" }}>
-                    <span style={{ color: "#7c3aed" }}>{"\u{1F4C5}"} {new Date(cap.captured_at).toLocaleDateString()}</span>
-                    {cap.source !== "web" && <span style={{ color: "#888" }}>{cap.source}</span>}
-                    {workflowCount > 0 && <span style={{ color: "#7c3aed" }}>{"\u{1F517}"} {workflowCount} workflow{workflowCount > 1 ? "s" : ""}</span>}
-                    {taskCount > 0 && <span style={{ color: "#888" }}>{taskCount} task{taskCount > 1 ? "s" : ""}</span>}
-                  </div>
-
-                  {/* Tags */}
-                  <div style={{ display: "flex", gap: "0.35rem", marginTop: "0.35rem", flexWrap: "wrap" }}>
-                    <span style={{
-                      background: cap.status === "review" ? "#fef3c7" : cap.status === "approved" ? "#dcfce7" : "#f3f4f6",
-                      color: cap.status === "review" ? "#92400e" : cap.status === "approved" ? "#166534" : "#555",
-                      padding: "0.1rem 0.4rem", borderRadius: "4px", fontSize: "0.72rem",
-                    }}>
-                      {cap.status}
-                    </span>
-                    <span style={{ background: "#f3f4f6", color: "#666", padding: "0.1rem 0.4rem", borderRadius: "4px", fontSize: "0.72rem" }}>
-                      {cap.content_type}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Action buttons */}
-                <div style={{ display: "flex", gap: "0.35rem", alignItems: "center", flexShrink: 0 }}>
-                  {cap.status === "review" && (
-                    <button
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpandedId(expandedId === cap.id ? null : cap.id); }}
-                      style={{ ...btnStyle, background: "#7c3aed", color: "white", borderRadius: "6px" }}
-                    >
-                      Review
-                    </button>
-                  )}
-                  {cap.status === "approved" && (
-                    <button
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); reopenCapture(cap.id); }}
-                      style={{ ...btnStyle, background: "transparent", border: "1px solid #e5e7eb", color: "#888", borderRadius: "6px" }}
-                    >
-                      Reopen
-                    </button>
-                  )}
-                  <button
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); trashCapture(cap.id); }}
-                    title="Move to trash"
-                    style={{ ...btnStyle, background: "transparent", border: "1px solid #e5e7eb", color: "#bbb", borderRadius: "6px", fontSize: "0.75rem" }}
-                  >
-                    {"\u{1F5D1}"}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Inline review panel — expanded */}
-            {expandedId === cap.id && cap.status === "review" && cap.extraction && (
-              <div style={{ borderTop: "1px solid #f0f0f0", padding: "0.85rem 1rem", background: "#fafafa" }}>
-                <ReviewPanel
-                  captureId={cap.id}
-                  extraction={cap.extraction}
-                  onReviewComplete={() => { setExpandedId(null); loadCaptures(); }}
-                />
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {captures.map((cap) => (
+        <CaptureCard
+          key={cap.id}
+          cap={cap}
+          isExpanded={expandedId === cap.id}
+          onToggleExpand={() => setExpandedId(expandedId === cap.id ? null : cap.id)}
+          onTrash={() => trashCapture(cap.id)}
+          onReopen={() => reopenCapture(cap.id)}
+          onReviewComplete={() => { setExpandedId(null); loadCaptures(); }}
+        />
+      ))}
     </div>
   );
 }

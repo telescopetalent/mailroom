@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { FileText, FileIcon, Lock, Unlock, X } from "lucide-react";
 import { api, apiUpload } from "../api/client";
 
 interface CaptureInputProps {
@@ -28,27 +29,11 @@ const emptyTask = (): ManualTask => ({ title: "", owner: "", due_date: "", prior
 const emptyFollowUp = (): ManualFollowUp => ({ description: "", owner: "", due_date: "" });
 const emptyWorkflow = (): ManualWorkflow => ({ name: "", description: "", steps: [{ title: "", owner: "", depends_on_prior: false }] });
 
-const inputStyle: React.CSSProperties = {
-  padding: "0.4rem 0.5rem",
-  border: "1px solid #d1d5db",
-  borderRadius: "4px",
-  fontSize: "0.9rem",
-  fontFamily: "inherit",
-};
-
-const labelStyle: React.CSSProperties = {
-  fontSize: "0.8rem",
-  color: "#666",
-  marginBottom: "0.2rem",
-};
-
-const sectionStyle: React.CSSProperties = {
-  marginBottom: "1rem",
-  padding: "0.75rem",
-  background: "#f9fafb",
-  borderRadius: "6px",
-  border: "1px solid #e5e7eb",
-};
+const inputCls = "w-full px-2 py-1.5 text-sm border border-zinc-300 dark:border-zinc-700 rounded bg-transparent text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent";
+const labelCls = "text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1";
+const sectionCls = "mb-3 p-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-lg border border-zinc-200 dark:border-zinc-800";
+const addBtnCls = "text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 bg-transparent border-0 cursor-pointer transition-colors";
+const removeBtnCls = "text-xs text-zinc-400 hover:text-red-500 bg-transparent border-0 cursor-pointer transition-colors";
 
 export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
   const [mode, setMode] = useState<"ai" | "manual">("ai");
@@ -111,19 +96,15 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
     setError("");
     try {
       if (files.length > 0) {
-        // Use FormData upload for files
         const formData = new FormData();
         formData.append("metadata", JSON.stringify({
           source: "web",
           content_text: text || undefined,
           mode: "ai",
         }));
-        for (const f of files) {
-          formData.append("files", f);
-        }
+        for (const f of files) formData.append("files", f);
         await apiUpload("/captures/upload", formData);
       } else {
-        // Text-only — use existing JSON endpoint
         await api("/captures", {
           method: "POST",
           body: JSON.stringify({ source: "web", content_text: text, mode: "ai" }),
@@ -140,33 +121,20 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
   };
 
   const handleSubmitManual = async () => {
-    const filteredTasks = tasks
-      .filter((t) => t.title.trim())
-      .map((t) => ({
-        title: t.title,
-        owner: t.owner || undefined,
-        due_date: t.due_date || undefined,
-        priority: t.priority,
-      }));
+    const filteredTasks = tasks.filter((t) => t.title.trim()).map((t) => ({
+      title: t.title, owner: t.owner || undefined, due_date: t.due_date || undefined, priority: t.priority,
+    }));
     const filteredNextSteps = nextSteps.filter((s) => s.trim());
     const filteredBlockers = blockers.filter((b) => b.trim());
-    const filteredFollowUps = followUps
-      .filter((f) => f.description.trim())
-      .map((f) => ({
-        description: f.description,
-        owner: f.owner || undefined,
-        due_date: f.due_date || undefined,
-      }));
-
+    const filteredFollowUps = followUps.filter((f) => f.description.trim()).map((f) => ({
+      description: f.description, owner: f.owner || undefined, due_date: f.due_date || undefined,
+    }));
     const filteredWorkflows = manualWorkflows
       .filter((w) => w.name.trim() && w.steps.some((s) => s.title.trim()))
       .map((w) => ({
-        name: w.name,
-        description: w.description || undefined,
+        name: w.name, description: w.description || undefined,
         steps: w.steps.filter((s) => s.title.trim()).map((s) => ({
-          title: s.title,
-          owner: s.owner || undefined,
-          depends_on_prior: s.depends_on_prior || undefined,
+          title: s.title, owner: s.owner || undefined, depends_on_prior: s.depends_on_prior || undefined,
         })),
       }));
 
@@ -181,17 +149,10 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
       await api("/captures", {
         method: "POST",
         body: JSON.stringify({
-          source: "web",
-          content_text: summary || "Manual capture",
-          mode: "manual",
+          source: "web", content_text: summary || "Manual capture", mode: "manual",
           manual_extraction: {
-            summary: summary || undefined,
-            tasks: filteredTasks,
-            workflows: filteredWorkflows,
-            next_steps: filteredNextSteps,
-            blockers: filteredBlockers,
-            follow_ups: filteredFollowUps,
-            priority,
+            summary: summary || undefined, tasks: filteredTasks, workflows: filteredWorkflows,
+            next_steps: filteredNextSteps, blockers: filteredBlockers, follow_ups: filteredFollowUps, priority,
           },
         }),
       });
@@ -213,44 +174,28 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
   };
 
   return (
-    <div style={{ marginBottom: "2rem" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.75rem" }}>
-        <h3 style={{ margin: 0 }}>Capture</h3>
-        <div
-          style={{
-            display: "flex",
-            background: "#f3f4f6",
-            borderRadius: "6px",
-            padding: "2px",
-          }}
-        >
+    <div className="mb-6">
+      {/* Header with mode toggle */}
+      <div className="flex items-center gap-3 mb-3">
+        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-wide m-0">Capture</h3>
+        <div className="flex bg-zinc-100 dark:bg-zinc-800 rounded-md p-0.5">
           <button
             onClick={() => setMode("ai")}
-            style={{
-              padding: "0.3rem 0.75rem",
-              fontSize: "0.85rem",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-              background: mode === "ai" ? "#111" : "transparent",
-              color: mode === "ai" ? "white" : "#666",
-              fontWeight: mode === "ai" ? 600 : 400,
-            }}
+            className={`px-3 py-1 text-xs font-medium rounded cursor-pointer border-0 transition-colors ${
+              mode === "ai"
+                ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                : "bg-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+            }`}
           >
             AI
           </button>
           <button
             onClick={() => setMode("manual")}
-            style={{
-              padding: "0.3rem 0.75rem",
-              fontSize: "0.85rem",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-              background: mode === "manual" ? "#111" : "transparent",
-              color: mode === "manual" ? "white" : "#666",
-              fontWeight: mode === "manual" ? 600 : 400,
-            }}
+            className={`px-3 py-1 text-xs font-medium rounded cursor-pointer border-0 transition-colors ${
+              mode === "manual"
+                ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                : "bg-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+            }`}
           >
             Manual
           </button>
@@ -259,6 +204,7 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
 
       {mode === "ai" ? (
         <>
+          {/* Drop zone */}
           <div
             onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
             onDragLeave={() => setIsDragOver(false)}
@@ -267,12 +213,11 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
               setIsDragOver(false);
               if (e.dataTransfer.files.length > 0) addFiles(e.dataTransfer.files);
             }}
-            style={{
-              border: isDragOver ? "2px dashed #3b82f6" : "1px solid #ccc",
-              borderRadius: "4px",
-              background: isDragOver ? "#eff6ff" : "white",
-              transition: "all 0.15s",
-            }}
+            className={`rounded-lg border-2 border-dashed transition-all ${
+              isDragOver
+                ? "border-blue-500 bg-blue-50 dark:bg-blue-950/20"
+                : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+            }`}
           >
             <textarea
               placeholder="Paste text, or drag and drop images, PDFs, or documents..."
@@ -287,26 +232,15 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
                   }
                 }
               }}
-              rows={6}
-              style={{
-                width: "100%",
-                padding: "0.75rem",
-                fontFamily: "inherit",
-                fontSize: "0.95rem",
-                border: "none",
-                outline: "none",
-                boxSizing: "border-box",
-                resize: "vertical",
-                background: "transparent",
-              }}
+              rows={5}
+              className="w-full px-3 py-3 text-sm bg-transparent border-0 outline-none resize-y text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
             />
-
             {files.length === 0 && (
-              <div style={{ padding: "0 0.75rem 0.5rem", color: "#aaa", fontSize: "0.8rem" }}>
+              <div className="px-3 pb-2 text-xs text-zinc-400">
                 Drop images, PDFs, or DOCX files here
                 <span
                   onClick={() => fileInputRef.current?.click()}
-                  style={{ color: "#3b82f6", cursor: "pointer", marginLeft: "0.5rem" }}
+                  className="text-violet-500 cursor-pointer ml-1 hover:text-violet-400"
                 >
                   or browse
                 </span>
@@ -319,56 +253,35 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
             type="file"
             multiple
             accept="image/*,.pdf,.docx"
-            style={{ display: "none" }}
+            className="hidden"
             onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }}
           />
 
           {/* File previews */}
           {files.length > 0 && (
-            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.5rem" }}>
+            <div className="flex gap-2 flex-wrap mt-2">
               {files.map((f, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.4rem",
-                    padding: "0.3rem 0.6rem",
-                    background: "#f3f4f6",
-                    borderRadius: "4px",
-                    fontSize: "0.8rem",
-                    border: "1px solid #e5e7eb",
-                  }}
-                >
+                <div key={i} className="flex items-center gap-1.5 px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded text-xs border border-zinc-200 dark:border-zinc-700">
                   {f.type.startsWith("image/") ? (
-                    <img
-                      src={URL.createObjectURL(f)}
-                      alt={f.name}
-                      style={{ width: 24, height: 24, objectFit: "cover", borderRadius: "2px" }}
-                    />
+                    <img src={URL.createObjectURL(f)} alt={f.name} className="w-5 h-5 object-cover rounded-sm" />
                   ) : (
-                    <span style={{ fontSize: "1rem" }}>{f.type.includes("pdf") ? "\u{1F4C4}" : "\u{1F4DD}"}</span>
+                    f.type.includes("pdf") ? <FileText className="w-4 h-4 text-zinc-500" /> : <FileIcon className="w-4 h-4 text-zinc-500" />
                   )}
-                  <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {f.name}
-                  </span>
-                  <span style={{ color: "#999" }}>({(f.size / 1024).toFixed(0)}KB)</span>
-                  <button
-                    onClick={() => removeFile(i)}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "#999", fontSize: "0.9rem", padding: 0 }}
-                  >
-                    x
+                  <span className="max-w-[120px] overflow-hidden text-ellipsis whitespace-nowrap text-zinc-700 dark:text-zinc-300">{f.name}</span>
+                  <span className="text-zinc-400">({(f.size / 1024).toFixed(0)}KB)</span>
+                  <button onClick={() => removeFile(i)} className="p-0 bg-transparent border-0 cursor-pointer text-zinc-400 hover:text-red-500">
+                    <X className="w-3 h-3" />
                   </button>
                 </div>
               ))}
             </div>
           )}
 
-          {error && <p style={{ color: "red", margin: "0.5rem 0" }}>{error}</p>}
+          {error && <p className="text-sm text-red-600 dark:text-red-400 mt-2 mb-0">{error}</p>}
           <button
             onClick={handleSubmitAI}
             disabled={loading || (!text.trim() && files.length === 0)}
-            style={{ marginTop: "0.5rem", padding: "0.5rem 1.5rem", cursor: loading ? "wait" : "pointer" }}
+            className="mt-3 px-4 py-2 text-sm font-medium rounded-md bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:bg-zinc-300 dark:disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed transition-colors cursor-pointer border-0"
           >
             {loading ? "Processing..." : "Send to Mailroom"}
           </button>
@@ -376,25 +289,21 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
       ) : (
         <div>
           {/* Summary */}
-          <div style={sectionStyle}>
-            <div style={labelStyle}>Summary</div>
+          <div className={sectionCls}>
+            <div className={labelCls}>Summary</div>
             <textarea
               placeholder="Brief summary of this capture..."
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
               rows={2}
-              style={{ ...inputStyle, width: "100%", boxSizing: "border-box", resize: "vertical" }}
+              className={inputCls + " resize-y"}
             />
           </div>
 
           {/* Priority */}
-          <div style={{ ...sectionStyle, display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            <div style={labelStyle}>Priority</div>
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value)}
-              style={inputStyle}
-            >
+          <div className={sectionCls + " flex items-center gap-3"}>
+            <div className={labelCls + " mb-0"}>Priority</div>
+            <select value={priority} onChange={(e) => setPriority(e.target.value)} className={inputCls + " w-auto"}>
               <option value="none">None</option>
               <option value="low">Low</option>
               <option value="medium">Medium</option>
@@ -403,52 +312,21 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
           </div>
 
           {/* Tasks */}
-          <div style={sectionStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-              <div style={{ ...labelStyle, fontWeight: 600, margin: 0 }}>Tasks</div>
-              <button
-                onClick={() => setTasks((prev) => [...prev, emptyTask()])}
-                style={{ fontSize: "0.8rem", padding: "0.2rem 0.5rem", cursor: "pointer" }}
-              >
-                + Add task
-              </button>
+          <div className={sectionCls}>
+            <div className="flex justify-between items-center mb-2">
+              <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Tasks</div>
+              <button onClick={() => setTasks((prev) => [...prev, emptyTask()])} className={addBtnCls}>+ Add task</button>
             </div>
             {tasks.map((t, i) => (
-              <div key={i} style={{ marginBottom: "0.5rem", padding: "0.5rem", background: "white", borderRadius: "4px", border: "1px solid #e5e7eb" }}>
-                <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.4rem" }}>
-                  <input
-                    placeholder="Task title"
-                    value={t.title}
-                    onChange={(e) => updateTask(i, "title", e.target.value)}
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
-                  {tasks.length > 1 && (
-                    <button
-                      onClick={() => setTasks((prev) => prev.filter((_, idx) => idx !== i))}
-                      style={{ fontSize: "0.8rem", color: "#999", cursor: "pointer", background: "none", border: "none" }}
-                    >
-                      Remove
-                    </button>
-                  )}
+              <div key={i} className="mb-2 p-2 bg-white dark:bg-zinc-900 rounded border border-zinc-200 dark:border-zinc-800">
+                <div className="flex gap-2 mb-1.5">
+                  <input placeholder="Task title" value={t.title} onChange={(e) => updateTask(i, "title", e.target.value)} className={inputCls} />
+                  {tasks.length > 1 && <button onClick={() => setTasks((prev) => prev.filter((_, idx) => idx !== i))} className={removeBtnCls}>Remove</button>}
                 </div>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <input
-                    placeholder="Owner"
-                    value={t.owner}
-                    onChange={(e) => updateTask(i, "owner", e.target.value)}
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
-                  <input
-                    type="date"
-                    value={t.due_date}
-                    onChange={(e) => updateTask(i, "due_date", e.target.value)}
-                    style={{ ...inputStyle }}
-                  />
-                  <select
-                    value={t.priority}
-                    onChange={(e) => updateTask(i, "priority", e.target.value)}
-                    style={{ ...inputStyle }}
-                  >
+                <div className="flex gap-2">
+                  <input placeholder="Owner" value={t.owner} onChange={(e) => updateTask(i, "owner", e.target.value)} className={inputCls} />
+                  <input type="date" value={t.due_date} onChange={(e) => updateTask(i, "due_date", e.target.value)} className={inputCls + " w-auto"} />
+                  <select value={t.priority} onChange={(e) => updateTask(i, "priority", e.target.value)} className={inputCls + " w-auto"}>
                     <option value="none">None</option>
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -460,55 +338,46 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
           </div>
 
           {/* Workflows */}
-          <div style={sectionStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-              <div style={{ ...labelStyle, fontWeight: 600, margin: 0 }}>Workflows</div>
-              <button
-                onClick={() => setManualWorkflows((prev) => [...prev, emptyWorkflow()])}
-                style={{ fontSize: "0.8rem", padding: "0.2rem 0.5rem", cursor: "pointer" }}
-              >
-                + Add workflow
-              </button>
+          <div className={sectionCls}>
+            <div className="flex justify-between items-center mb-2">
+              <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Workflows</div>
+              <button onClick={() => setManualWorkflows((prev) => [...prev, emptyWorkflow()])} className={addBtnCls}>+ Add workflow</button>
             </div>
             {manualWorkflows.length === 0 && (
-              <div style={{ color: "#aaa", fontSize: "0.8rem" }}>No workflows. Add one to group sequential steps.</div>
+              <div className="text-xs text-zinc-400">No workflows. Add one to group sequential steps.</div>
             )}
             {manualWorkflows.map((w, wi) => (
-              <div key={wi} style={{ marginBottom: "0.75rem", padding: "0.5rem", background: "white", borderRadius: "4px", border: "1px solid #e5e7eb" }}>
-                <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.4rem" }}>
+              <div key={wi} className="mb-3 p-2 bg-white dark:bg-zinc-900 rounded border border-zinc-200 dark:border-zinc-800">
+                <div className="flex gap-2 mb-1.5">
                   <input
                     placeholder="Workflow name"
                     value={w.name}
                     onChange={(e) => setManualWorkflows((prev) => prev.map((wf, idx) => idx === wi ? { ...wf, name: e.target.value } : wf))}
-                    style={{ ...inputStyle, flex: 1, fontWeight: 600 }}
+                    className={inputCls + " font-semibold"}
                   />
-                  <button
-                    onClick={() => setManualWorkflows((prev) => prev.filter((_, idx) => idx !== wi))}
-                    style={{ fontSize: "0.8rem", color: "#999", cursor: "pointer", background: "none", border: "none" }}
-                  >
-                    Remove
-                  </button>
+                  <button onClick={() => setManualWorkflows((prev) => prev.filter((_, idx) => idx !== wi))} className={removeBtnCls}>Remove</button>
                 </div>
                 <input
                   placeholder="Description (optional)"
                   value={w.description}
                   onChange={(e) => setManualWorkflows((prev) => prev.map((wf, idx) => idx === wi ? { ...wf, description: e.target.value } : wf))}
-                  style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: "0.4rem" }}
+                  className={inputCls + " mb-2"}
                 />
-                <div style={{ marginLeft: "0.5rem" }}>
-                  <div style={{ ...labelStyle, fontSize: "0.75rem", marginBottom: "0.3rem" }}>Steps (in order):</div>
+                <div className="ml-2">
+                  <div className="text-[11px] text-zinc-400 mb-1">Steps (in order):</div>
                   {w.steps.map((s, si) => (
                     <div key={si}>
-                      {/* Divider for blocked steps */}
                       {s.depends_on_prior && (
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.3rem 0 0.15rem", margin: "0.15rem 0" }}>
-                          <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
-                          <span style={{ fontSize: "0.65rem", color: "#999", whiteSpace: "nowrap" }}>{"\u{1F513}"} unlocks after above</span>
-                          <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
+                        <div className="flex items-center gap-2 py-1 my-0.5">
+                          <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
+                          <span className="text-[10px] text-zinc-400 whitespace-nowrap flex items-center gap-1">
+                            <Unlock className="w-2.5 h-2.5" /> unlocks after above
+                          </span>
+                          <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
                         </div>
                       )}
-                      <div style={{ display: "flex", gap: "0.4rem", marginBottom: "0.3rem", alignItems: "center", opacity: s.depends_on_prior ? 0.7 : 1 }}>
-                        <span style={{ color: "#999", fontSize: "0.75rem", width: "1.2rem" }}>{si + 1}.</span>
+                      <div className={`flex gap-1.5 mb-1 items-center ${s.depends_on_prior ? "opacity-70" : ""}`}>
+                        <span className="text-[11px] text-zinc-400 w-4">{si + 1}.</span>
                         <input
                           placeholder="Step title"
                           value={s.title}
@@ -520,7 +389,7 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
                               return { ...wf, steps };
                             }));
                           }}
-                          style={{ ...inputStyle, flex: 1 }}
+                          className={inputCls}
                         />
                         <input
                           placeholder="Owner"
@@ -533,9 +402,8 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
                               return { ...wf, steps };
                             }));
                           }}
-                          style={{ ...inputStyle, width: "80px" }}
+                          className={inputCls + " w-20"}
                         />
-                        {/* Lock toggle */}
                         {si > 0 && (
                           <button
                             onClick={() => {
@@ -547,15 +415,13 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
                               }));
                             }}
                             title={s.depends_on_prior ? "Remove lock (allow anytime)" : "Lock until prior steps complete"}
-                            style={{
-                              fontSize: "0.75rem", padding: "0.15rem 0.3rem", cursor: "pointer",
-                              background: s.depends_on_prior ? "#fef2f2" : "#f3f4f6",
-                              color: s.depends_on_prior ? "#dc2626" : "#999",
-                              border: s.depends_on_prior ? "1px solid #fca5a5" : "1px solid #e5e7eb",
-                              borderRadius: "3px",
-                            }}
+                            className={`p-1 rounded cursor-pointer border transition-colors ${
+                              s.depends_on_prior
+                                ? "bg-red-50 dark:bg-red-950/30 text-red-500 border-red-200 dark:border-red-800"
+                                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 border-zinc-200 dark:border-zinc-700"
+                            }`}
                           >
-                            {s.depends_on_prior ? "\u{1F512}" : "\u{1F513}"}
+                            {s.depends_on_prior ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
                           </button>
                         )}
                         {w.steps.length > 1 && (
@@ -566,9 +432,9 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
                                 return { ...wf, steps: wf.steps.filter((_, i) => i !== si) };
                               }));
                             }}
-                            style={{ fontSize: "0.7rem", color: "#999", cursor: "pointer", background: "none", border: "none" }}
+                            className="p-0 bg-transparent border-0 cursor-pointer text-zinc-400 hover:text-red-500"
                           >
-                            x
+                            <X className="w-3 h-3" />
                           </button>
                         )}
                       </div>
@@ -581,7 +447,7 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
                         return { ...wf, steps: [...wf.steps, { title: "", owner: "", depends_on_prior: false }] };
                       }));
                     }}
-                    style={{ fontSize: "0.75rem", padding: "0.15rem 0.4rem", cursor: "pointer", marginTop: "0.2rem" }}
+                    className={addBtnCls + " mt-1"}
                   >
                     + Add step
                   </button>
@@ -591,115 +457,54 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
           </div>
 
           {/* Next Steps */}
-          <div style={sectionStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-              <div style={{ ...labelStyle, fontWeight: 600, margin: 0 }}>Next Steps</div>
-              <button
-                onClick={() => setNextSteps((prev) => [...prev, ""])}
-                style={{ fontSize: "0.8rem", padding: "0.2rem 0.5rem", cursor: "pointer" }}
-              >
-                + Add
-              </button>
+          <div className={sectionCls}>
+            <div className="flex justify-between items-center mb-2">
+              <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Next Steps</div>
+              <button onClick={() => setNextSteps((prev) => [...prev, ""])} className={addBtnCls}>+ Add</button>
             </div>
             {nextSteps.map((s, i) => (
-              <div key={i} style={{ display: "flex", gap: "0.5rem", marginBottom: "0.4rem" }}>
-                <input
-                  placeholder="Next step..."
-                  value={s}
-                  onChange={(e) => setNextSteps((prev) => prev.map((v, idx) => (idx === i ? e.target.value : v)))}
-                  style={{ ...inputStyle, flex: 1 }}
-                />
-                {nextSteps.length > 1 && (
-                  <button
-                    onClick={() => setNextSteps((prev) => prev.filter((_, idx) => idx !== i))}
-                    style={{ fontSize: "0.8rem", color: "#999", cursor: "pointer", background: "none", border: "none" }}
-                  >
-                    Remove
-                  </button>
-                )}
+              <div key={i} className="flex gap-2 mb-1.5">
+                <input placeholder="Next step..." value={s} onChange={(e) => setNextSteps((prev) => prev.map((v, idx) => (idx === i ? e.target.value : v)))} className={inputCls} />
+                {nextSteps.length > 1 && <button onClick={() => setNextSteps((prev) => prev.filter((_, idx) => idx !== i))} className={removeBtnCls}>Remove</button>}
               </div>
             ))}
           </div>
 
           {/* Blockers */}
-          <div style={sectionStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-              <div style={{ ...labelStyle, fontWeight: 600, margin: 0 }}>Blockers</div>
-              <button
-                onClick={() => setBlockers((prev) => [...prev, ""])}
-                style={{ fontSize: "0.8rem", padding: "0.2rem 0.5rem", cursor: "pointer" }}
-              >
-                + Add
-              </button>
+          <div className={sectionCls}>
+            <div className="flex justify-between items-center mb-2">
+              <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Blockers</div>
+              <button onClick={() => setBlockers((prev) => [...prev, ""])} className={addBtnCls}>+ Add</button>
             </div>
             {blockers.map((b, i) => (
-              <div key={i} style={{ display: "flex", gap: "0.5rem", marginBottom: "0.4rem" }}>
-                <input
-                  placeholder="Blocker..."
-                  value={b}
-                  onChange={(e) => setBlockers((prev) => prev.map((v, idx) => (idx === i ? e.target.value : v)))}
-                  style={{ ...inputStyle, flex: 1 }}
-                />
-                {blockers.length > 1 && (
-                  <button
-                    onClick={() => setBlockers((prev) => prev.filter((_, idx) => idx !== i))}
-                    style={{ fontSize: "0.8rem", color: "#999", cursor: "pointer", background: "none", border: "none" }}
-                  >
-                    Remove
-                  </button>
-                )}
+              <div key={i} className="flex gap-2 mb-1.5">
+                <input placeholder="Blocker..." value={b} onChange={(e) => setBlockers((prev) => prev.map((v, idx) => (idx === i ? e.target.value : v)))} className={inputCls} />
+                {blockers.length > 1 && <button onClick={() => setBlockers((prev) => prev.filter((_, idx) => idx !== i))} className={removeBtnCls}>Remove</button>}
               </div>
             ))}
           </div>
 
           {/* Follow-ups */}
-          <div style={sectionStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-              <div style={{ ...labelStyle, fontWeight: 600, margin: 0 }}>Follow-ups</div>
-              <button
-                onClick={() => setFollowUps((prev) => [...prev, emptyFollowUp()])}
-                style={{ fontSize: "0.8rem", padding: "0.2rem 0.5rem", cursor: "pointer" }}
-              >
-                + Add
-              </button>
+          <div className={sectionCls}>
+            <div className="flex justify-between items-center mb-2">
+              <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Follow-ups</div>
+              <button onClick={() => setFollowUps((prev) => [...prev, emptyFollowUp()])} className={addBtnCls}>+ Add</button>
             </div>
             {followUps.map((f, i) => (
-              <div key={i} style={{ display: "flex", gap: "0.5rem", marginBottom: "0.4rem" }}>
-                <input
-                  placeholder="Follow-up description"
-                  value={f.description}
-                  onChange={(e) => updateFollowUp(i, "description", e.target.value)}
-                  style={{ ...inputStyle, flex: 1 }}
-                />
-                <input
-                  placeholder="Owner"
-                  value={f.owner}
-                  onChange={(e) => updateFollowUp(i, "owner", e.target.value)}
-                  style={{ ...inputStyle, width: "120px" }}
-                />
-                <input
-                  type="date"
-                  value={f.due_date}
-                  onChange={(e) => updateFollowUp(i, "due_date", e.target.value)}
-                  style={inputStyle}
-                />
-                {followUps.length > 1 && (
-                  <button
-                    onClick={() => setFollowUps((prev) => prev.filter((_, idx) => idx !== i))}
-                    style={{ fontSize: "0.8rem", color: "#999", cursor: "pointer", background: "none", border: "none" }}
-                  >
-                    Remove
-                  </button>
-                )}
+              <div key={i} className="flex gap-2 mb-1.5">
+                <input placeholder="Follow-up description" value={f.description} onChange={(e) => updateFollowUp(i, "description", e.target.value)} className={inputCls} />
+                <input placeholder="Owner" value={f.owner} onChange={(e) => updateFollowUp(i, "owner", e.target.value)} className={inputCls + " w-28"} />
+                <input type="date" value={f.due_date} onChange={(e) => updateFollowUp(i, "due_date", e.target.value)} className={inputCls + " w-auto"} />
+                {followUps.length > 1 && <button onClick={() => setFollowUps((prev) => prev.filter((_, idx) => idx !== i))} className={removeBtnCls}>Remove</button>}
               </div>
             ))}
           </div>
 
-          {error && <p style={{ color: "red", margin: "0.5rem 0" }}>{error}</p>}
+          {error && <p className="text-sm text-red-600 dark:text-red-400 mt-2 mb-0">{error}</p>}
           <button
             onClick={handleSubmitManual}
             disabled={loading}
-            style={{ padding: "0.5rem 1.5rem", cursor: loading ? "wait" : "pointer" }}
+            className="mt-1 px-4 py-2 text-sm font-medium rounded-md bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:bg-zinc-300 dark:disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed transition-colors cursor-pointer border-0"
           >
             {loading ? "Saving..." : "Save Capture"}
           </button>

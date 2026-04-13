@@ -1,23 +1,35 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
-import Dashboard from "./pages/Dashboard";
-import CaptureDetail from "./pages/CaptureDetail";
-import Tasks from "./pages/Tasks";
-import Trash from "./pages/Trash";
-import Settings from "./pages/Settings";
+
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const CaptureDetail = lazy(() => import("./pages/CaptureDetail"));
+const Tasks = lazy(() => import("./pages/Tasks"));
+const Trash = lazy(() => import("./pages/Trash"));
+const Settings = lazy(() => import("./pages/Settings"));
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <span className="text-sm text-zinc-400">Loading...</span>
+    </div>
+  );
+}
 
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/captures/:id" element={<CaptureDetail />} />
-          <Route path="/tasks" element={<Tasks />} />
-          <Route path="/trash" element={<Trash />} />
-          <Route path="/settings" element={<Settings />} />
-        </Route>
-      </Routes>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/captures/:id" element={<CaptureDetail />} />
+            <Route path="/tasks" element={<Tasks />} />
+            <Route path="/trash" element={<Trash />} />
+            <Route path="/settings" element={<Settings />} />
+          </Route>
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }
