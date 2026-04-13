@@ -329,3 +329,34 @@ def toggle_subtask(
     db.refresh(task)
 
     return {"status": "ok", "sub_tasks": sub_tasks, "task_status": task.status}
+
+
+@router.delete("/{task_id}")
+def delete_task(
+    task_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Permanently delete a task."""
+    task = (
+        db.query(ApprovedTaskRow)
+        .filter(
+            ApprovedTaskRow.id == task_id,
+            ApprovedTaskRow.workspace_id == current_user["workspace_id"],
+        )
+        .first()
+    )
+    if not task:
+        raise NotFoundError("Task")
+
+    workflow_id = task.workflow_id
+
+    db.delete(task)
+
+    # Sync workflow status after removing task
+    if workflow_id:
+        _sync_workflow_status(db, workflow_id)
+
+    db.commit()
+
+    return {"status": "ok"}

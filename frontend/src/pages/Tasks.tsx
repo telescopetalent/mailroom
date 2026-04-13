@@ -11,9 +11,10 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Lock, Check, ChevronRight, Calendar, Link2, Unlock } from "lucide-react";
+import { GripVertical, Lock, Check, ChevronRight, Calendar, Link2, Unlock, Trash2 } from "lucide-react";
 import { api } from "../api/client";
 import TaskDetailModal from "../components/TaskDetailModal";
+import ConfirmDialog from "../components/ConfirmDialog";
 import { useDndSensors } from "../hooks/useDndSensors";
 import { PRIORITY_COLORS } from "../constants";
 import type {
@@ -108,6 +109,7 @@ export default function Tasks() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(null);
 
   const loadAll = () => {
     setLoading(true);
@@ -193,6 +195,16 @@ export default function Tasks() {
     }
   };
 
+  const deleteTask = async (id: string) => {
+    try {
+      await api(`/tasks/${id}`, { method: "DELETE" });
+      loadAll();
+      if (showCompleted) loadCompleted();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Unknown error");
+    }
+  };
+
   const renderTask = (task: Task) => {
     const circleColor = PRIORITY_COLORS[task.priority] || "#d1d5db";
     const isCompleted = task.status === "completed";
@@ -259,10 +271,16 @@ export default function Tasks() {
           )}
         </div>
 
-        <ChevronRight
-          onClick={() => setSelectedTaskId(task.id)}
-          className="w-4 h-4 text-zinc-300 dark:text-zinc-600 cursor-pointer shrink-0 mt-1 hover:text-zinc-500 transition-colors"
-        />
+        <div className="flex items-center gap-1 shrink-0 mt-1">
+          <Trash2
+            onClick={() => setConfirmDelete({ id: task.id, title: task.title })}
+            className="w-3.5 h-3.5 text-zinc-300 dark:text-zinc-600 cursor-pointer hover:text-red-500 transition-colors"
+          />
+          <ChevronRight
+            onClick={() => setSelectedTaskId(task.id)}
+            className="w-4 h-4 text-zinc-300 dark:text-zinc-600 cursor-pointer hover:text-zinc-500 transition-colors"
+          />
+        </div>
       </div>
     );
   };
@@ -390,6 +408,19 @@ export default function Tasks() {
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        title="Delete task"
+        description={`Permanently delete "${confirmDelete?.title || ""}"? This cannot be undone.`}
+        onConfirm={() => {
+          if (confirmDelete) {
+            deleteTask(confirmDelete.id);
+            setConfirmDelete(null);
+          }
+        }}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }

@@ -195,6 +195,9 @@
 - [x] Collapsible sidebar navigation (Linear-style, w-56 to w-14, localStorage persistence)
 - [x] TaskDetailModal converted to right-side panel (slide-in-from-right, Notion-style metadata rows)
 - [x] ConfirmDialog component replacing all window.confirm() calls (Trash, Settings)
+- [x] ConfirmDialog race condition fix: removed AlertDialog.Action wrapper to prevent auto-close before callback
+- [x] Task deletion: DELETE /api/v1/tasks/{task_id} endpoint with workflow status sync
+- [x] Task delete UI: trash icon on task rows with ConfirmDialog confirmation
 - [x] All inline styles converted to Tailwind (only @dnd-kit transforms and dynamic priority colors remain)
 - [x] Keyframe animations: fadeIn, slideUp, slideInRight with utility classes
 - [x] Route-level code splitting: React.lazy + Suspense (initial JS 117KB → 73KB gzipped, 38% reduction)

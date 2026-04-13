@@ -27,14 +27,12 @@ export default function ConfirmDialog({ open, onConfirm, onCancel, title, descri
                 Cancel
               </button>
             </AlertDialog.Cancel>
-            <AlertDialog.Action asChild>
-              <button
-                onClick={onConfirm}
-                className="px-3 py-1.5 text-sm font-medium rounded-md bg-red-600 hover:bg-red-700 text-white border-0 cursor-pointer transition-colors"
-              >
-                {confirmLabel}
-              </button>
-            </AlertDialog.Action>
+            <button
+              onClick={onConfirm}
+              className="px-3 py-1.5 text-sm font-medium rounded-md bg-red-600 hover:bg-red-700 text-white border-0 cursor-pointer transition-colors"
+            >
+              {confirmLabel}
+            </button>
           </div>
         </AlertDialog.Content>
       </AlertDialog.Portal>
