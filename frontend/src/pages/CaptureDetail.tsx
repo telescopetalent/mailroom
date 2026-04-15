@@ -3,7 +3,9 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { ChevronLeft, Trash2, RotateCcw } from "lucide-react";
 import { api } from "../api/client";
 import ReviewPanel from "../components/ReviewPanel";
+import MediaSection from "../components/MediaSection";
 import type { Extraction } from "../types";
+import type { Attachment } from "../components/MediaSection";
 
 interface CaptureData {
   id: string;
@@ -13,6 +15,7 @@ interface CaptureData {
   status: string;
   captured_at: string;
   extraction: Extraction | null;
+  attachments?: Attachment[];
 }
 
 export default function CaptureDetail() {
@@ -72,6 +75,13 @@ export default function CaptureDetail() {
           {capture.normalized_text}
         </pre>
       )}
+
+      {/* Media & Links */}
+      <MediaSection
+        captureId={capture.id}
+        attachments={capture.attachments || []}
+        normalizedText={capture.normalized_text}
+      />
 
       {/* Review panel */}
       {capture.extraction && capture.status === "review" && (

@@ -12,6 +12,7 @@ from typing import Dict, List, Sequence
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -67,15 +68,27 @@ def _extraction_to_dict(extraction: ExtractionRow) -> dict:
     }
 
 
+def _attachment_to_dict(a: AttachmentRow) -> dict:
+    """Convert AttachmentRow to a plain dict."""
+    return {
+        "id": str(a.id),
+        "filename": a.filename,
+        "content_type": a.content_type,
+        "size_bytes": a.size_bytes,
+        "created_at": a.created_at.isoformat() if a.created_at else None,
+    }
+
+
 def _capture_to_response(
     capture: CaptureRow,
     extraction: ExtractionRow | None,
     attachment_count: int,
+    attachments: list[AttachmentRow] | None = None,
 ) -> dict:
     """Convert DB rows to API response dict."""
     ext = _extraction_to_dict(extraction) if extraction else None
 
-    return {
+    resp = {
         "id": str(capture.id),
         "workspace_id": str(capture.workspace_id),
         "user_id": str(capture.user_id),
@@ -89,6 +102,11 @@ def _capture_to_response(
         "extraction": ext,
         "attachment_count": attachment_count,
     }
+
+    if attachments is not None:
+        resp["attachments"] = [_attachment_to_dict(a) for a in attachments]
+
+    return resp
 
 
 def _get_capture_metadata(
@@ -146,10 +164,15 @@ def _get_capture_or_404(
 
 
 def _single_capture_response(db: Session, capture: CaptureRow) -> dict:
-    """Build a response dict for a single capture with its extraction + attachment count."""
+    """Build a response dict for a single capture with its extraction + attachments."""
     ext = db.query(ExtractionRow).filter(ExtractionRow.capture_id == capture.id).first()
-    att_count = db.query(AttachmentRow).filter(AttachmentRow.capture_id == capture.id).count()
-    return _capture_to_response(capture, ext, att_count)
+    att_rows = (
+        db.query(AttachmentRow)
+        .filter(AttachmentRow.capture_id == capture.id)
+        .order_by(AttachmentRow.created_at)
+        .all()
+    )
+    return _capture_to_response(capture, ext, len(att_rows), attachments=att_rows)
 
 
 # ---------------------------------------------------------------------------
@@ -437,6 +460,76 @@ def permanently_delete_all_trashed(
         db.delete(cap)
 
     db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Attachment endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{capture_id}/attachments", response_model=None)
+def list_attachments(
+    capture_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List all attachments for a capture."""
+    _get_capture_or_404(db, capture_id, current_user["workspace_id"])
+
+    rows = (
+        db.query(AttachmentRow)
+        .filter(AttachmentRow.capture_id == capture_id)
+        .order_by(AttachmentRow.created_at)
+        .all()
+    )
+
+    return [
+        {
+            "id": str(a.id),
+            "filename": a.filename,
+            "content_type": a.content_type,
+            "size_bytes": a.size_bytes,
+            "created_at": a.created_at.isoformat() if a.created_at else None,
+        }
+        for a in rows
+    ]
+
+
+@router.get("/{capture_id}/attachments/{attachment_id}/download")
+def download_attachment(
+    capture_id: UUID,
+    attachment_id: UUID,
+    token: str = Query(None, description="API key via query param (for img/download tags)"),
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Download an attachment file."""
+    _get_capture_or_404(db, capture_id, current_user["workspace_id"])
+
+    attachment = (
+        db.query(AttachmentRow)
+        .filter(
+            AttachmentRow.id == attachment_id,
+            AttachmentRow.capture_id == capture_id,
+        )
+        .first()
+    )
+    if not attachment:
+        raise NotFoundError("Attachment")
+
+    storage = get_storage()
+    data = storage.download(attachment.s3_key)
+
+    # Sanitize filename for HTTP header (ASCII only)
+    safe_filename = attachment.filename.encode("ascii", "replace").decode("ascii")
+
+    return Response(
+        content=data,
+        media_type=attachment.content_type,
+        headers={
+            "Content-Disposition": f'inline; filename="{safe_filename}"',
+        },
+    )
 
 
 # ---------------------------------------------------------------------------

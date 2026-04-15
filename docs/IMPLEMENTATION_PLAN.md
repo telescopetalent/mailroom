@@ -204,6 +204,11 @@
 - [x] React.memo on CaptureCard component to prevent sibling re-renders
 - [x] Scrollbar styling for dark/light modes
 - [x] All 8 frontend tests passing, TypeScript clean
+- [x] Media & Links section on Capture Detail: image thumbnails (expandable lightbox), document download buttons, URL extraction from text
+- [x] Attachment API: GET /captures/{id}/attachments (list), GET /captures/{id}/attachments/{id}/download (serve with Bearer auth)
+- [x] Authenticated media loading: useAuthBlobUrl hook fetches via Bearer header → blob URL (no tokens in URLs)
+- [x] Vision extraction prompt fix: removed curly braces causing Python str.format() KeyError
+- [x] Unicode filename fix: ASCII-safe Content-Disposition headers for attachment downloads
 
 **Deliverable:** A user can paste text, drag images/documents, or use manual entry in the web app. AI extracts actions, groups sequential steps into workflows with dependency tracking, and infers missing intermediate steps. Users review (with drag-and-drop reordering), approve, and manage tasks in a polished Linear/Notion-style UI with dark mode, sidebar navigation, slide-in detail panels, labels, dependencies, and sequential step locking — all with source traceability.
 

@@ -64,7 +64,7 @@ Read and understand everything visible in the image(s), then extract structured 
 Return a JSON object with these fields:
 - "summary": A brief 1-2 sentence summary of what the image contains
 - "tasks": Array of INDEPENDENT, standalone tasks — objects with (title, description, owner, due_date, priority). Only put tasks here that are NOT part of a sequence.
-- "workflows": Array of workflows — use when multiple tasks form a logical sequence toward a goal. Each workflow: (name, description, steps: [{title, description, owner, due_date, priority}])
+- "workflows": Array of workflows — use when multiple tasks form a logical sequence toward a goal. Each workflow: (name, description, steps: array of task objects)
 - "next_steps": Array of strings — next actions that aren't full tasks
 - "owners": Array of strings — all people/roles mentioned as responsible
 - "due_dates": Array of objects with (description, date, source_text)

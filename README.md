@@ -48,6 +48,7 @@ Mailroom is a routing layer first and an AI action engine second.
 - Capture cards with priority-colored circles, status badges, and hover transitions
 - Tasks page with workflow groups (progress bars, step checkboxes) and standalone tasks
 - Workflow auto-completion when all steps are done, auto-reopen on uncomplete
+- **Media & Links** — Capture Detail shows attached images as expandable thumbnails (lightbox), documents as downloadable links, and URLs extracted from capture text as clickable cards
 - **Task deletion** — permanently delete tasks from the Tasks page with confirmation dialog
 - Trash system with styled confirmation dialogs (Radix AlertDialog) and configurable retention
 - Settings page for trash retention and connected surfaces
@@ -241,6 +242,7 @@ Without an API key, captures use the stub provider (returns a placeholder summar
 
 ## What's Built for Quality (Phase 6)
 
+- **Attachment API** — list and download capture attachments with Bearer auth (no tokens in URLs)
 - **53 backend tests** — pipeline, captures, reviews, tasks, workflows, webhooks, model provider (pytest + SQLite)
 - **8 frontend tests** — CaptureInput, Tasks page (Vitest + @testing-library/react)
 - **Custom exceptions** — MailroomError hierarchy with structured JSON error responses
