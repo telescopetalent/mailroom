@@ -7,6 +7,8 @@ const CaptureDetail = lazy(() => import("./pages/CaptureDetail"));
 const Tasks = lazy(() => import("./pages/Tasks"));
 const Trash = lazy(() => import("./pages/Trash"));
 const Settings = lazy(() => import("./pages/Settings"));
+const Projects = lazy(() => import("./pages/Projects"));
+const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
 
 function PageLoader() {
   return (
@@ -24,6 +26,8 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/captures/:id" element={<CaptureDetail />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/projects/:id" element={<ProjectDetail />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/trash" element={<Trash />} />
             <Route path="/settings" element={<Settings />} />

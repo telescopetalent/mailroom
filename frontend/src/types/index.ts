@@ -39,6 +39,22 @@ export interface Extraction {
   priority: string;
 }
 
+// --- Projects ---
+
+export interface Project {
+  id: string;
+  workspace_id: string;
+  name: string;
+  description: string | null;
+  color: string | null;
+  capture_count: number;
+  created_at: string;
+}
+
+export interface ProjectList {
+  items: Project[];
+}
+
 // --- Capture ---
 
 export interface CaptureItem {
@@ -49,6 +65,7 @@ export interface CaptureItem {
   captured_at: string;
   normalized_text: string | null;
   extraction: Extraction | null;
+  project_id: string | null;
 }
 
 export interface CaptureList {

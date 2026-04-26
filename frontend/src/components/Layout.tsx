@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { Inbox, CheckSquare, Trash2, Settings, Sun, Moon, PanelLeftClose, PanelLeft, Mail } from "lucide-react";
+import { Inbox, CheckSquare, Trash2, Settings, Sun, Moon, PanelLeftClose, PanelLeft, Mail, FolderOpen } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 
 const NAV_ITEMS = [
   { to: "/", label: "Inbox", icon: Inbox },
+  { to: "/projects", label: "Projects", icon: FolderOpen },
   { to: "/tasks", label: "Tasks", icon: CheckSquare },
   { to: "/trash", label: "Trash", icon: Trash2 },
   { to: "/settings", label: "Settings", icon: Settings },

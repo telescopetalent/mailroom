@@ -95,6 +95,24 @@ class ApiKeyRow(Base):
 
 
 # ---------------------------------------------------------------------------
+# Projects
+# ---------------------------------------------------------------------------
+
+
+class ProjectRow(Base):
+    __tablename__ = "projects"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    workspace_id = Column(
+        UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False, index=True
+    )
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    color = Column(String, nullable=True)  # hex color, e.g. "#7c3aed"
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+# ---------------------------------------------------------------------------
 # Captures
 # ---------------------------------------------------------------------------
 
@@ -144,6 +162,9 @@ class CaptureRow(Base):
     content_type = Column(CONTENT_TYPE_ENUM, nullable=False)
     raw_content = Column(JSONB, default=dict)
     normalized_text = Column(Text)
+    project_id = Column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     status = Column(CAPTURE_STATUS_ENUM, default="pending", nullable=False, index=True)
     previous_status = Column(String, nullable=True)
     captured_at = Column(DateTime, default=datetime.utcnow, nullable=False)

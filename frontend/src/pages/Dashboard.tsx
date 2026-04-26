@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback, memo } from "react";
 import { Link } from "react-router-dom";
-import { Calendar, Link2, Trash2, RotateCcw, Check } from "lucide-react";
+import { Calendar, Link2, Trash2, RotateCcw, Check, FolderOpen } from "lucide-react";
 import { api, getApiKey, setApiKey } from "../api/client";
 import CaptureInput from "../components/CaptureInput";
 import ReviewPanel from "../components/ReviewPanel";
-import type { CaptureItem, CaptureList } from "../types";
+import type { CaptureItem, CaptureList, Project, ProjectList } from "../types";
 
 const CaptureCard = memo(function CaptureCard({
   cap,
@@ -13,6 +13,7 @@ const CaptureCard = memo(function CaptureCard({
   onTrash,
   onReopen,
   onReviewComplete,
+  projectMap,
 }: {
   cap: CaptureItem;
   isExpanded: boolean;
@@ -20,10 +21,12 @@ const CaptureCard = memo(function CaptureCard({
   onTrash: () => void;
   onReopen: () => void;
   onReviewComplete: () => void;
+  projectMap: Map<string, Project>;
 }) {
   const statusColor = cap.status === "review" ? "#f59e0b" : cap.status === "approved" ? "#22c55e" : "#d1d5db";
   const workflowCount = (cap.extraction?.workflows || []).length;
   const taskCount = (cap.extraction?.tasks || []).length;
+  const project = cap.project_id ? projectMap.get(cap.project_id) : null;
 
   return (
     <div className="mb-2 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors overflow-hidden">
@@ -60,6 +63,22 @@ const CaptureCard = memo(function CaptureCard({
                 </span>
               )}
               {taskCount > 0 && <span className="text-zinc-400">{taskCount} task{taskCount > 1 ? "s" : ""}</span>}
+              {project && (
+                <Link
+                  to={`/projects/${project.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center gap-1 no-underline"
+                >
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ background: project.color || "#7c3aed" }}
+                  />
+                  <span style={{ color: project.color || "#7c3aed" }} className="font-medium">
+                    {project.name}
+                  </span>
+                  <FolderOpen className="w-3 h-3" style={{ color: project.color || "#7c3aed" }} />
+                </Link>
+              )}
             </div>
 
             <div className="flex gap-1.5 mt-1.5 flex-wrap">
@@ -125,14 +144,21 @@ export default function Dashboard() {
   const [keyInput, setKeyInput] = useState("");
   const [user, setUser] = useState<{ email: string; name: string } | null>(null);
   const [captures, setCaptures] = useState<CaptureItem[]>([]);
+  const [projectMap, setProjectMap] = useState<Map<string, Project>>(new Map());
   const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loadingCaptures, setLoadingCaptures] = useState(false);
 
   const loadCaptures = useCallback(() => {
     setLoadingCaptures(true);
-    api<CaptureList>("/captures")
-      .then((data) => setCaptures(data.items))
+    Promise.all([
+      api<CaptureList>("/captures"),
+      api<ProjectList>("/projects"),
+    ])
+      .then(([caps, projs]) => {
+        setCaptures(caps.items);
+        setProjectMap(new Map(projs.items.map((p) => [p.id, p])));
+      })
       .catch(() => {})
       .finally(() => setLoadingCaptures(false));
   }, []);
@@ -211,6 +237,7 @@ export default function Dashboard() {
           onTrash={() => trashCapture(cap.id)}
           onReopen={() => reopenCapture(cap.id)}
           onReviewComplete={() => { setExpandedId(null); loadCaptures(); }}
+          projectMap={projectMap}
         />
       ))}
     </div>

@@ -88,6 +88,7 @@ class CaptureResponse(BaseModel):
     content_type: ContentType
     normalized_text: Optional[str] = None
     status: CaptureStatus
+    project_id: Optional[UUID] = None
     captured_at: datetime
     created_at: datetime
     extraction: Optional[Extraction] = None
@@ -281,6 +282,45 @@ class SurfaceConnectionListResponse(BaseModel):
     """List of surface connections."""
 
     items: list[SurfaceConnectionResponse]
+
+
+# ---------------------------------------------------------------------------
+# Projects
+# ---------------------------------------------------------------------------
+
+
+class CreateProjectRequest(BaseModel):
+    """Request body for POST /api/v1/projects."""
+
+    name: str
+    description: Optional[str] = None
+    color: Optional[str] = None
+
+
+class UpdateProjectRequest(BaseModel):
+    """Request body for PATCH /api/v1/projects/{id}."""
+
+    name: Optional[str] = None
+    description: Optional[str] = None
+    color: Optional[str] = None
+
+
+class ProjectResponse(BaseModel):
+    """Response for a single project."""
+
+    id: UUID
+    workspace_id: UUID
+    name: str
+    description: Optional[str] = None
+    color: Optional[str] = None
+    capture_count: int = 0
+    created_at: datetime
+
+
+class ProjectListResponse(BaseModel):
+    """List of projects."""
+
+    items: list[ProjectResponse]
 
 
 # ---------------------------------------------------------------------------

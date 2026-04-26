@@ -97,6 +97,7 @@ def _capture_to_response(
         "content_type": capture.content_type,
         "normalized_text": capture.normalized_text,
         "status": capture.status,
+        "project_id": str(capture.project_id) if capture.project_id else None,
         "captured_at": capture.captured_at.isoformat() if capture.captured_at else None,
         "created_at": capture.created_at.isoformat() if capture.created_at else None,
         "extraction": ext,
@@ -345,6 +346,7 @@ def create_capture_with_files(
 def list_captures(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    project_id: str = Query(None, description="Filter by project UUID"),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -357,6 +359,14 @@ def list_captures(
         )
         .order_by(CaptureRow.created_at.desc())
     )
+
+    if project_id:
+        import uuid as _uuid
+        try:
+            pid = _uuid.UUID(project_id)
+        except ValueError:
+            pid = None
+        query = query.filter(CaptureRow.project_id == pid) if pid else query
 
     total = query.count()
     captures = query.offset((page - 1) * page_size).limit(page_size).all()
