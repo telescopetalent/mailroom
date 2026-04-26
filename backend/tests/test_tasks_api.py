@@ -135,3 +135,50 @@ def test_task_survives_capture_delete(client, auth_headers):
     orphan = [t for t in tasks_resp.json()["items"] if t["title"] == "Orphan task"]
     assert len(orphan) == 1
     assert orphan[0]["capture_id"] is None
+
+
+def test_workspace_isolation_list(client, auth_headers, other_headers):
+    """User A's tasks are invisible to user B."""
+    _create_approved_task(client, auth_headers)
+
+    # User B should see no tasks
+    resp = client.get("/api/v1/tasks", headers=other_headers)
+    assert resp.status_code == 200
+    assert resp.json()["items"] == []
+
+
+def test_workspace_isolation_get(client, auth_headers, other_headers):
+    """User B cannot fetch user A's task by ID."""
+    import uuid
+    task_id = _create_approved_task(client, auth_headers)
+
+    resp = client.get(f"/api/v1/tasks/{task_id}", headers=other_headers)
+    assert resp.status_code == 404
+
+
+def test_workspace_isolation_patch(client, auth_headers, other_headers):
+    """User B cannot modify user A's task."""
+    task_id = _create_approved_task(client, auth_headers)
+
+    resp = client.patch(
+        f"/api/v1/tasks/{task_id}",
+        json={"status": "completed"},
+        headers=other_headers,
+    )
+    assert resp.status_code == 404
+
+    # Original task is unchanged
+    original = client.get(f"/api/v1/tasks/{task_id}", headers=auth_headers).json()
+    assert original["status"] == "open"
+
+
+def test_workspace_isolation_delete(client, auth_headers, other_headers):
+    """User B cannot delete user A's task."""
+    task_id = _create_approved_task(client, auth_headers)
+
+    resp = client.delete(f"/api/v1/tasks/{task_id}", headers=other_headers)
+    assert resp.status_code == 404
+
+    # Task still exists for user A
+    original = client.get(f"/api/v1/tasks/{task_id}", headers=auth_headers).json()
+    assert original["id"] == task_id

@@ -125,13 +125,19 @@ def _task_to_response(
     source: str,
     workflow_name: str | None = None,
     db: Session | None = None,
+    *,
+    blocked_by_wf_name: str | None = None,
+    blocked_by_task_title: str | None = None,
+    is_blocked: bool = False,
 ) -> TaskResponse:
-    """Build a TaskResponse, resolving blocked-by names if *db* is provided."""
-    blocked_by_wf_name: str | None = None
-    blocked_by_task_title: str | None = None
-    is_blocked = False
+    """Build a TaskResponse.
 
-    if db and task.blocked_by_workflow_id:
+    Pass pre-resolved blocked_by_wf_name / blocked_by_task_title / is_blocked
+    from the caller to avoid per-row queries in list endpoints.  When db is
+    provided and no pre-resolved values are given, falls back to single queries
+    (used by get_task).
+    """
+    if db and blocked_by_wf_name is None and task.blocked_by_workflow_id:
         bwf = (
             db.query(ApprovedWorkflowRow)
             .filter(ApprovedWorkflowRow.id == task.blocked_by_workflow_id)
@@ -141,7 +147,7 @@ def _task_to_response(
             blocked_by_wf_name = bwf.name
             is_blocked = bwf.status != "completed"
 
-    if db and task.blocked_by_task_id:
+    if db and blocked_by_task_title is None and task.blocked_by_task_id:
         bt = (
             db.query(ApprovedTaskRow)
             .filter(ApprovedTaskRow.id == task.blocked_by_task_id)
@@ -207,16 +213,40 @@ def list_tasks(
     total = query.count()
     tasks = query.offset((page - 1) * page_size).limit(page_size).all()
 
-    # Shared caches eliminate repeated queries across the page of tasks
+    # Pre-batch all foreign-key lookups to avoid N+1 queries
     source_cache: dict[UUID, str] = {}
     workflow_cache: dict[UUID, str | None] = {}
+
+    bwf_ids = {t.blocked_by_workflow_id for t in tasks if t.blocked_by_workflow_id}
+    bwf_map: dict[UUID, ApprovedWorkflowRow] = {}
+    if bwf_ids:
+        bwf_map = {
+            r.id: r
+            for r in db.query(ApprovedWorkflowRow).filter(ApprovedWorkflowRow.id.in_(bwf_ids)).all()
+        }
+
+    bt_ids = {t.blocked_by_task_id for t in tasks if t.blocked_by_task_id}
+    bt_map: dict[UUID, ApprovedTaskRow] = {}
+    if bt_ids:
+        bt_map = {
+            r.id: r
+            for r in db.query(ApprovedTaskRow).filter(ApprovedTaskRow.id.in_(bt_ids)).all()
+        }
 
     items = []
     for task in tasks:
         source, wf_name = _load_task_context(
             db, task, source_cache=source_cache, workflow_cache=workflow_cache
         )
-        items.append(_task_to_response(task, source, wf_name, db))
+        bwf = bwf_map.get(task.blocked_by_workflow_id) if task.blocked_by_workflow_id else None
+        bt = bt_map.get(task.blocked_by_task_id) if task.blocked_by_task_id else None
+        blocked = (bwf is not None and bwf.status != "completed") or (bt is not None and bt.status != "completed")
+        items.append(_task_to_response(
+            task, source, wf_name,
+            blocked_by_wf_name=bwf.name if bwf else None,
+            blocked_by_task_title=bt.title if bt else None,
+            is_blocked=blocked,
+        ))
 
     return TaskListResponse(
         items=items,

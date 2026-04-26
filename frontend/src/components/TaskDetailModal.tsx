@@ -26,14 +26,20 @@ export default function TaskDetailModal({ taskId, onClose, onUpdate }: TaskDetai
   const [availableWorkflows, setAvailableWorkflows] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
-    setLoading(true);
-    api<TaskDetail>(`/tasks/${taskId}`)
-      .then(setTask)
-      .catch(() => onClose())
-      .finally(() => setLoading(false));
-    api<{ items: { id: string; name: string; status: string }[] }>("/workflows")
-      .then((data) => setAvailableWorkflows(data.items.filter((w) => w.status === "open")))
-      .catch(() => {});
+    let cancelled = false;
+    Promise.all([
+      api<TaskDetail>(`/tasks/${taskId}`),
+      api<{ items: { id: string; name: string; status: string }[] }>("/workflows"),
+    ])
+      .then(([taskData, wfData]) => {
+        if (cancelled) return;
+        setTask(taskData);
+        setAvailableWorkflows(wfData.items.filter((w) => w.status === "open"));
+      })
+      .catch(() => { if (!cancelled) onClose(); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId]);
 
   const saveField = useCallback(async (field: string, value: unknown) => {
@@ -46,10 +52,10 @@ export default function TaskDetailModal({ taskId, onClose, onUpdate }: TaskDetai
       setTask(updated);
       onUpdate();
     } catch {
-      // Silently fail — field reverts on next fetch
+      // field reverts on next fetch
     }
     setEditingField(null);
-  }, [task?.id, onUpdate]);
+  }, [task, onUpdate]);
 
   const addLabel = () => {
     if (!task || !labelInput.trim()) return;

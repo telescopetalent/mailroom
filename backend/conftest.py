@@ -147,3 +147,25 @@ def client(db, db_engine):
 def auth_headers(test_user) -> dict:
     """Authorization headers using the test API key."""
     return {"Authorization": f"Bearer {test_user['api_key']}"}
+
+
+@pytest.fixture()
+def other_user(db) -> dict:
+    """A second, independent user + workspace (for isolation tests)."""
+    wid = str(uuid.uuid4())
+    uid = str(uuid.uuid4())
+    api_key = "mr_other_key_456"
+
+    db.add(WorkspaceRow(id=wid, name="Other Workspace", trash_retention_days=30, created_at=datetime.utcnow()))
+    db.add(UserRow(id=uid, email="other@mailroom.dev", name="Other User", created_at=datetime.utcnow()))
+    db.add(WorkspaceMemberRow(workspace_id=wid, user_id=uid, role="admin"))
+    db.add(ApiKeyRow(workspace_id=wid, user_id=uid, key_hash=hash_api_key(api_key), name="other-key", created_at=datetime.utcnow()))
+    db.commit()
+
+    return {"user_id": uid, "workspace_id": wid, "email": "other@mailroom.dev", "api_key": api_key}
+
+
+@pytest.fixture()
+def other_headers(other_user) -> dict:
+    """Authorization headers for the second user."""
+    return {"Authorization": f"Bearer {other_user['api_key']}"}

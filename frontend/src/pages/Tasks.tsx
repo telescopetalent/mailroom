@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, memo, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   DndContext,
@@ -25,7 +25,7 @@ import type {
   WorkflowList,
 } from "../types";
 
-function SortableStep({ step, index, onToggle, onSelect, isLocked, showDivider, onToggleSubtask }: { step: WorkflowTask; index: number; onToggle: () => void; onSelect: () => void; isLocked?: boolean; showDivider?: boolean; onToggleSubtask?: (subtaskIndex: number) => void }) {
+const SortableStep = memo(function SortableStep({ step, index, onToggle, onSelect, isLocked, showDivider, onToggleSubtask }: { step: WorkflowTask; index: number; onToggle: () => void; onSelect: () => void; isLocked?: boolean; showDivider?: boolean; onToggleSubtask?: (subtaskIndex: number) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
 
   return (
@@ -98,7 +98,7 @@ function SortableStep({ step, index, onToggle, onSelect, isLocked, showDivider, 
       )}
     </>
   );
-}
+});
 
 export default function Tasks() {
   const [standaloneTasks, setStandaloneTasks] = useState<Task[]>([]);
@@ -116,8 +116,7 @@ export default function Tasks() {
   const [deletedStepIds, setDeletedStepIds] = useState<string[]>([]);
   const [newStepInput, setNewStepInput] = useState("");
 
-  const loadAll = () => {
-    setLoading(true);
+  const loadAll = useCallback(() => {
     Promise.all([
       api<TaskList>("/tasks?status=open"),
       api<WorkflowList>("/workflows?status=open"),
@@ -128,9 +127,9 @@ export default function Tasks() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  };
+  }, []);
 
-  const loadCompleted = () => {
+  const loadCompleted = useCallback(() => {
     Promise.all([
       api<TaskList>("/tasks?status=completed"),
       api<WorkflowList>("/workflows?status=completed"),
@@ -140,15 +139,17 @@ export default function Tasks() {
         setCompletedWorkflows(wfData.items);
       })
       .catch((e) => setError(e.message));
-  };
+  }, []);
 
-  useEffect(loadAll, []);
+  useEffect(() => { loadAll(); }, [loadAll]);
 
+  const completedFetchedRef = useRef(false);
   useEffect(() => {
-    if (showCompleted && completedTasks.length === 0 && completedWorkflows.length === 0) {
+    if (showCompleted && !completedFetchedRef.current) {
+      completedFetchedRef.current = true;
       loadCompleted();
     }
-  }, [showCompleted]);
+  }, [showCompleted, loadCompleted]);
 
   const reorderSteps = async (workflowId: string, taskIds: string[]) => {
     try {

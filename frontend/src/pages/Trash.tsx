@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { RotateCcw, Trash2 } from "lucide-react";
 import { api } from "../api/client";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -27,8 +27,7 @@ export default function Trash() {
   const [error, setError] = useState("");
   const [confirmAction, setConfirmAction] = useState<{ title: string; description: string; onConfirm: () => void } | null>(null);
 
-  const load = () => {
-    setLoading(true);
+  const load = useCallback(() => {
     api<TrashedList>("/captures/trash")
       .then((data) => {
         setCaptures(data.items);
@@ -36,9 +35,9 @@ export default function Trash() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  };
+  }, []);
 
-  useEffect(load, []);
+  useEffect(() => { load(); }, [load]);
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {

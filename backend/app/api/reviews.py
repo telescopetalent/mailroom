@@ -34,6 +34,38 @@ def _parse_due_date(value: str | None) -> datetime | None:
     # Unparseable (e.g. "Thursday", "next week") — drop it
     return None
 
+def _make_task(
+    extraction: ExtractionRow,
+    capture: CaptureRow,
+    workspace_id: UUID,
+    now: datetime,
+    *,
+    title: str,
+    description: str | None = None,
+    owner: str | None = None,
+    due_date: datetime | None = None,
+    priority: str = "none",
+    workflow_id: UUID | None = None,
+    workflow_order: int | None = None,
+    source_ref_extra: dict | None = None,
+) -> ApprovedTaskRow:
+    return ApprovedTaskRow(
+        extraction_id=extraction.id,
+        capture_id=capture.id,
+        workspace_id=workspace_id,
+        workflow_id=workflow_id,
+        workflow_order=workflow_order,
+        title=title,
+        description=description,
+        owner=owner,
+        due_date=due_date,
+        priority=priority,
+        source_ref={**(capture.source_ref or {}), **(source_ref_extra or {})},
+        approved_at=now,
+        created_at=now,
+    )
+
+
 router = APIRouter(prefix="/captures", tags=["reviews"])
 
 
@@ -87,20 +119,14 @@ def submit_review(
             if decision.action == "edit" and decision.edited_value:
                 task_data = {**task_data, **decision.edited_value}
 
-            approved_task = ApprovedTaskRow(
-                extraction_id=extraction.id,
-                capture_id=capture.id,
-                workspace_id=current_user["workspace_id"],
+            db.add(_make_task(
+                extraction, capture, current_user["workspace_id"], now,
                 title=task_data.get("title", "Untitled"),
                 description=task_data.get("description"),
                 owner=task_data.get("owner"),
                 due_date=_parse_due_date(task_data.get("due_date")),
                 priority=task_data.get("priority", "none"),
-                source_ref=capture.source_ref or {},
-                approved_at=now,
-                created_at=now,
-            )
-            db.add(approved_task)
+            ))
             approved_count += 1
 
         elif decision.item_type == "next_step":
@@ -112,17 +138,7 @@ def submit_review(
             if decision.action == "edit" and decision.edited_value:
                 step_text = decision.edited_value.get("title", step_text)
 
-            approved_task = ApprovedTaskRow(
-                extraction_id=extraction.id,
-                capture_id=capture.id,
-                workspace_id=current_user["workspace_id"],
-                title=step_text,
-                priority="none",
-                source_ref=capture.source_ref or {},
-                approved_at=now,
-                created_at=now,
-            )
-            db.add(approved_task)
+            db.add(_make_task(extraction, capture, current_user["workspace_id"], now, title=step_text))
             approved_count += 1
 
         elif decision.item_type == "follow_up":
@@ -134,19 +150,12 @@ def submit_review(
             if decision.action == "edit" and decision.edited_value:
                 fu = {**fu, **decision.edited_value}
 
-            approved_task = ApprovedTaskRow(
-                extraction_id=extraction.id,
-                capture_id=capture.id,
-                workspace_id=current_user["workspace_id"],
+            db.add(_make_task(
+                extraction, capture, current_user["workspace_id"], now,
                 title=fu.get("description", "Follow-up"),
                 owner=fu.get("owner"),
                 due_date=_parse_due_date(fu.get("due_date")),
-                priority="none",
-                source_ref=capture.source_ref or {},
-                approved_at=now,
-                created_at=now,
-            )
-            db.add(approved_task)
+            ))
             approved_count += 1
 
         elif decision.item_type == "workflow":
@@ -178,29 +187,22 @@ def submit_review(
             db.add(workflow)
             db.flush()  # Get workflow.id
 
-            # Create a task for each step in order
             steps = wf_data.get("steps", [])
             for order, step in enumerate(steps):
-                task = ApprovedTaskRow(
-                    extraction_id=extraction.id,
-                    capture_id=capture.id,
-                    workspace_id=current_user["workspace_id"],
-                    workflow_id=workflow.id,
-                    workflow_order=order,
+                db.add(_make_task(
+                    extraction, capture, current_user["workspace_id"], now,
                     title=step.get("title", "Untitled step"),
                     description=step.get("description"),
                     owner=step.get("owner"),
                     due_date=_parse_due_date(step.get("due_date")),
                     priority=step.get("priority", "none"),
-                    source_ref={
-                        **(capture.source_ref or {}),
+                    workflow_id=workflow.id,
+                    workflow_order=order,
+                    source_ref_extra={
                         "depends_on_prior": bool(step.get("depends_on_prior")),
                         "sub_tasks": [{"title": st, "completed": False} for st in (step.get("sub_tasks") or [])],
                     },
-                    approved_at=now,
-                    created_at=now,
-                )
-                db.add(task)
+                ))
 
             approved_count += 1
 

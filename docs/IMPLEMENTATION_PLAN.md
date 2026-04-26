@@ -212,6 +212,10 @@
 - [x] Authenticated media loading: useAuthBlobUrl hook fetches via Bearer header → blob URL (no tokens in URLs)
 - [x] Vision extraction prompt fix: removed curly braces causing Python str.format() KeyError
 - [x] Unicode filename fix: ASCII-safe Content-Disposition headers for attachment downloads
+- [x] Performance & quality refactor: N+1 query elimination in tasks list (batch blocked_by lookups), _make_task() helper in reviews.py (eliminated 4× copy-paste), zip() iteration in normalize.py, ACCEPTED_TYPES moved to module level
+- [x] React performance: memo(SortableStep), useCallback with stable deps, useRef for blobUrl revocation, cancelled flag pattern for async effects, Promise.all for parallel fetches in TaskDetailModal
+- [x] ESLint clean: 0 errors 0 warnings (fixed set-state-in-effect, no-useless-escape, react-refresh/only-export-components violations)
+- [x] Attachment type consolidated into types/index.ts (single source of truth)
 
 **Deliverable:** A user can paste text, drag images/documents, or use manual entry in the web app. AI extracts actions, groups sequential steps into workflows with dependency tracking, and infers missing intermediate steps. Users review (with drag-and-drop reordering), approve, and manage tasks in a polished Linear/Notion-style UI with dark mode, sidebar navigation, slide-in detail panels, labels, dependencies, and sequential step locking — all with source traceability.
 
@@ -255,11 +259,15 @@
 - [x] Pipeline stage tests (ingest, classify, normalize, extract) — 10 tests
 - [x] Capture API tests (CRUD, upload, trash/restore) — 12 tests
 - [x] Review workflow tests (approve, reject, mixed, reopen) — 7 tests
-- [x] Task API tests (list, filter, update, orphan survival) — 7 tests
+- [x] Task API tests (list, filter, update, orphan survival, workspace isolation) — 11 tests
+- [x] Workflow API tests (approve, auto-complete, reopen, delete, step add) — 11 tests
 - [x] Webhook tests (email, Slack, unregistered senders) — 7 tests
 - [x] Model provider tests (stub, properties) — 3 tests
-- [x] Frontend tests: Vitest + @testing-library/react — 7 tests (CaptureInput, Tasks)
+- [x] Frontend tests: Vitest + @testing-library/react — 8 tests (CaptureInput, Tasks)
 - [x] TypeScript build passes clean
+- [x] Workspace isolation: user A cannot read/modify/delete user B's tasks (4 tests)
+- [x] Workflow delete endpoint test: cascade removes workflow + all steps
+- [x] Workflow step add endpoint test: appends task with correct order, rejects blank title
 
 **Epic 6.2: Error handling and resilience**
 - [x] Custom exception hierarchy (MailroomError → NotFoundError, ValidationError, ExtractionError, RateLimitError)

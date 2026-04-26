@@ -73,10 +73,15 @@ def normalize(
     image_keys = []
     storage = get_storage()
 
-    for i, key in enumerate(ingest_result.file_keys):
-        meta = ingest_result.file_metas[i] if i < len(ingest_result.file_metas) else {}
+    metas = ingest_result.file_metas or []
+    keyed_files = list(zip(ingest_result.file_keys, metas))
+    # Pad metas if fewer than keys (shouldn't happen, but be safe)
+    for i in range(len(keyed_files), len(ingest_result.file_keys)):
+        keyed_files.append((ingest_result.file_keys[i], {}))
+
+    for key, meta in keyed_files:
         ct = meta.get("content_type", "")
-        filename = meta.get("filename", f"file_{i}")
+        filename = meta.get("filename", key)
 
         if ct == "application/pdf":
             try:
@@ -123,12 +128,10 @@ def normalize(
     db.add(capture)
     db.flush()  # Get capture.id for attachments
 
-    # Create attachment records
-    for i, key in enumerate(ingest_result.file_keys):
-        meta = ingest_result.file_metas[i] if i < len(ingest_result.file_metas) else {}
+    for key, meta in keyed_files:
         attachment = AttachmentRow(
             capture_id=capture.id,
-            filename=meta.get("filename", f"file_{i}"),
+            filename=meta.get("filename", key),
             content_type=meta.get("content_type", "application/octet-stream"),
             s3_key=key,
             size_bytes=meta.get("size_bytes", 0),

@@ -189,3 +189,75 @@ def test_standalone_tasks_separate_from_workflows(client, auth_headers):
     assert len(standalone) == 1
     assert standalone[0]["title"] == "Standalone task"
     assert len(workflow_tasks) == 3
+
+
+def _approve_workflow(client, auth_headers) -> str:
+    """Create and approve a workflow; return the workflow ID."""
+    capture_id = _create_capture_with_workflow(client, auth_headers)
+    client.patch(
+        f"/api/v1/captures/{capture_id}/review",
+        json={"decisions": [{"item_type": "workflow", "item_index": 0, "action": "approve"}]},
+        headers=auth_headers,
+    )
+    wf_resp = client.get("/api/v1/workflows", headers=auth_headers)
+    return wf_resp.json()["items"][0]["id"]
+
+
+def test_delete_workflow(client, auth_headers):
+    """DELETE /workflows/{id} removes the workflow and all its tasks."""
+    wf_id = _approve_workflow(client, auth_headers)
+
+    # Confirm tasks exist
+    tasks_before = client.get("/api/v1/tasks", headers=auth_headers).json()["items"]
+    wf_tasks_before = [t for t in tasks_before if t.get("workflow_id") == wf_id]
+    assert len(wf_tasks_before) == 3
+
+    resp = client.delete(f"/api/v1/workflows/{wf_id}", headers=auth_headers)
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "ok"
+
+    # Workflow should be gone
+    wf_resp = client.get("/api/v1/workflows", headers=auth_headers)
+    assert all(w["id"] != wf_id for w in wf_resp.json()["items"])
+
+    # All workflow tasks should be gone too
+    tasks_after = client.get("/api/v1/tasks", headers=auth_headers).json()["items"]
+    wf_tasks_after = [t for t in tasks_after if t.get("workflow_id") == wf_id]
+    assert len(wf_tasks_after) == 0
+
+
+def test_delete_workflow_not_found(client, auth_headers):
+    """DELETE on a nonexistent workflow returns 404."""
+    import uuid
+    resp = client.delete(f"/api/v1/workflows/{uuid.uuid4()}", headers=auth_headers)
+    assert resp.status_code == 404
+
+
+def test_add_workflow_step(client, auth_headers):
+    """POST /workflows/{id}/steps appends a new open task to the workflow."""
+    wf_id = _approve_workflow(client, auth_headers)
+
+    resp = client.post(
+        f"/api/v1/workflows/{wf_id}/steps",
+        json={"title": "New step"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["tasks"]) == 4
+    new_step = data["tasks"][-1]
+    assert new_step["title"] == "New step"
+    assert new_step["status"] == "open"
+    assert new_step["workflow_order"] == 3
+
+
+def test_add_workflow_step_empty_title(client, auth_headers):
+    """POST /workflows/{id}/steps with blank title returns 400."""
+    wf_id = _approve_workflow(client, auth_headers)
+
+    resp = client.post(
+        f"/api/v1/workflows/{wf_id}/steps",
+        json={"title": "   "},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 400

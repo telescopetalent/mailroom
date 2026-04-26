@@ -4,8 +4,7 @@ import { ChevronLeft, Trash2, RotateCcw } from "lucide-react";
 import { api } from "../api/client";
 import ReviewPanel from "../components/ReviewPanel";
 import MediaSection from "../components/MediaSection";
-import type { Extraction } from "../types";
-import type { Attachment } from "../components/MediaSection";
+import type { Extraction, Attachment } from "../types";
 
 interface CaptureData {
   id: string;

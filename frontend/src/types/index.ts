@@ -56,6 +56,15 @@ export interface CaptureList {
   pagination: { total_count: number };
 }
 
+// --- Attachments ---
+
+export interface Attachment {
+  id: string;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+}
+
 // --- Tasks ---
 
 export interface SubTask {

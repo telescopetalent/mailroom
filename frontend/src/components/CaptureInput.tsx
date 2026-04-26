@@ -35,6 +35,12 @@ const sectionCls = "mb-3 p-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-lg border bo
 const addBtnCls = "text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 bg-transparent border-0 cursor-pointer transition-colors";
 const removeBtnCls = "text-xs text-zinc-400 hover:text-red-500 bg-transparent border-0 cursor-pointer transition-colors";
 
+const ACCEPTED_TYPES = [
+  "image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif",
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+
 export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
   const [mode, setMode] = useState<"ai" | "manual">("ai");
   const [text, setText] = useState("");
@@ -45,12 +51,6 @@ export default function CaptureInput({ onCaptureCreated }: CaptureInputProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const ACCEPTED_TYPES = [
-    "image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif",
-    "application/pdf",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  ];
 
   const addFiles = useCallback((newFiles: FileList | File[]) => {
     const valid = Array.from(newFiles).filter((f) => {

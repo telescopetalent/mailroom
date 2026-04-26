@@ -1,15 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Image, FileText, FileIcon, Link2, ExternalLink, X, Download } from "lucide-react";
 import { getApiKey } from "../api/client";
+import type { Attachment } from "../types";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
-
-export interface Attachment {
-  id: string;
-  filename: string;
-  content_type: string;
-  size_bytes: number;
-}
 
 interface MediaSectionProps {
   captureId: string;
@@ -18,7 +12,7 @@ interface MediaSectionProps {
 }
 
 function extractLinks(text: string): string[] {
-  const urlRegex = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/g;
+  const urlRegex = /https?:\/\/[^\s<>"{}|\\^`[\]]+/g;
   const matches = text.match(urlRegex);
   if (!matches) return [];
   return [...new Set(matches)];
@@ -37,20 +31,31 @@ function attachmentUrl(captureId: string, attachmentId: string): string {
 /** Fetches an attachment as a blob URL using Bearer auth */
 function useAuthBlobUrl(captureId: string, attachmentId: string): string | null {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     const apiKey = getApiKey();
     const url = attachmentUrl(captureId, attachmentId);
     const headers: Record<string, string> = {};
     if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+    let cancelled = false;
 
     fetch(url, { headers })
       .then((r) => r.blob())
-      .then((blob) => setBlobUrl(URL.createObjectURL(blob)))
+      .then((blob) => {
+        if (cancelled) return;
+        const objectUrl = URL.createObjectURL(blob);
+        blobUrlRef.current = objectUrl;
+        setBlobUrl(objectUrl);
+      })
       .catch(() => {});
 
     return () => {
-      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      cancelled = true;
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
     };
   }, [captureId, attachmentId]);
 
