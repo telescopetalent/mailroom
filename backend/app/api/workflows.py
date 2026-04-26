@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
 from app.core.database import get_db
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import NotFoundError, ValidationError
 from app.db.models import ApprovedTaskRow, ApprovedWorkflowRow
 from app.models.api_schemas import (
     PaginationMeta,
@@ -157,6 +157,51 @@ def update_workflow(
 
     db.commit()
     db.refresh(wf)
+    return _workflow_to_response(wf, tasks)
+
+
+@router.delete("/{workflow_id}")
+def delete_workflow(
+    workflow_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Permanently delete a workflow and all its tasks."""
+    wf, tasks = _get_workflow_with_tasks(db, workflow_id, current_user["workspace_id"])
+    for task in tasks:
+        db.delete(task)
+    db.delete(wf)
+    db.commit()
+    return {"status": "ok"}
+
+
+@router.post("/{workflow_id}/steps", response_model=WorkflowResponse)
+def add_workflow_step(
+    workflow_id: UUID,
+    body: dict,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Add a new step to a workflow."""
+    wf, tasks = _get_workflow_with_tasks(db, workflow_id, current_user["workspace_id"])
+
+    title = (body.get("title") or "").strip()
+    if not title:
+        raise ValidationError("title is required")
+
+    max_order = max((t.workflow_order or 0 for t in tasks), default=-1)
+    new_task = ApprovedTaskRow(
+        workspace_id=current_user["workspace_id"],
+        workflow_id=wf.id,
+        workflow_order=max_order + 1,
+        title=title,
+        status="open",
+        priority="none",
+    )
+    db.add(new_task)
+    db.commit()
+
+    wf, tasks = _get_workflow_with_tasks(db, workflow_id, current_user["workspace_id"])
     return _workflow_to_response(wf, tasks)
 
 

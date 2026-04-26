@@ -204,6 +204,9 @@
 - [x] React.memo on CaptureCard component to prevent sibling re-renders
 - [x] Scrollbar styling for dark/light modes
 - [x] All 8 frontend tests passing, TypeScript clean
+- [x] Workflow delete: DELETE /workflows/{id} (deletes workflow + all steps) with trash icon + ConfirmDialog
+- [x] Workflow step editor: inline edit mode (pencil icon) with editable step titles, X to remove steps, add new steps
+- [x] POST /workflows/{id}/steps endpoint to append new steps to a workflow
 - [x] Media & Links section on Capture Detail: image thumbnails (expandable lightbox), document download buttons, URL extraction from text
 - [x] Attachment API: GET /captures/{id}/attachments (list), GET /captures/{id}/attachments/{id}/download (serve with Bearer auth)
 - [x] Authenticated media loading: useAuthBlobUrl hook fetches via Bearer header → blob URL (no tokens in URLs)

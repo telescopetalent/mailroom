@@ -11,7 +11,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Lock, Check, ChevronRight, Calendar, Link2, Unlock, Trash2 } from "lucide-react";
+import { GripVertical, Lock, Check, ChevronRight, Calendar, Link2, Unlock, Trash2, Pencil, Plus, X } from "lucide-react";
 import { api } from "../api/client";
 import TaskDetailModal from "../components/TaskDetailModal";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -110,6 +110,11 @@ export default function Tasks() {
   const [loading, setLoading] = useState(true);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(null);
+  const [confirmDeleteWorkflow, setConfirmDeleteWorkflow] = useState<{ id: string; name: string } | null>(null);
+  const [editingWfId, setEditingWfId] = useState<string | null>(null);
+  const [draftSteps, setDraftSteps] = useState<(WorkflowTask & { isNew?: boolean })[]>([]);
+  const [deletedStepIds, setDeletedStepIds] = useState<string[]>([]);
+  const [newStepInput, setNewStepInput] = useState("");
 
   const loadAll = () => {
     setLoading(true);
@@ -205,6 +210,75 @@ export default function Tasks() {
     }
   };
 
+  const deleteWorkflow = async (id: string) => {
+    try {
+      await api(`/workflows/${id}`, { method: "DELETE" });
+      loadAll();
+      if (showCompleted) loadCompleted();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Unknown error");
+    }
+  };
+
+  const enterEditMode = (wf: Workflow) => {
+    setEditingWfId(wf.id);
+    setDraftSteps([...wf.tasks]);
+    setDeletedStepIds([]);
+    setNewStepInput("");
+  };
+
+  const exitEditMode = () => {
+    setEditingWfId(null);
+    setDraftSteps([]);
+    setDeletedStepIds([]);
+    setNewStepInput("");
+  };
+
+  const addDraftStep = () => {
+    const title = newStepInput.trim();
+    if (!title) return;
+    setDraftSteps((prev) => [
+      ...prev,
+      { id: `new-${Date.now()}`, title, description: null, owner: null, status: "open", priority: "none", workflow_order: prev.length, isNew: true },
+    ]);
+    setNewStepInput("");
+  };
+
+  const removeDraftStep = (step: WorkflowTask & { isNew?: boolean }) => {
+    if (!step.isNew) setDeletedStepIds((prev) => [...prev, step.id]);
+    setDraftSteps((prev) => prev.filter((s) => s.id !== step.id));
+  };
+
+  const saveWorkflowEdits = async (wf: Workflow) => {
+    try {
+      for (const id of deletedStepIds) {
+        await api(`/tasks/${id}`, { method: "DELETE" });
+      }
+      for (const step of draftSteps) {
+        if (step.isNew) continue;
+        const original = wf.tasks.find((t) => t.id === step.id);
+        if (original && original.title !== step.title && step.title.trim()) {
+          await api(`/tasks/${step.id}`, {
+            method: "PATCH",
+            body: JSON.stringify({ title: step.title.trim() }),
+          });
+        }
+      }
+      for (const step of draftSteps) {
+        if (!step.isNew || !step.title.trim()) continue;
+        await api(`/workflows/${wf.id}/steps`, {
+          method: "POST",
+          body: JSON.stringify({ title: step.title.trim() }),
+        });
+      }
+      exitEditMode();
+      loadAll();
+      if (showCompleted) loadCompleted();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Unknown error");
+    }
+  };
+
   const renderTask = (task: Task) => {
     const circleColor = PRIORITY_COLORS[task.priority] || "#d1d5db";
     const isCompleted = task.status === "completed";
@@ -289,6 +363,7 @@ export default function Tasks() {
     const completedCount = wf.tasks.filter((t) => t.status === "completed").length;
     const totalCount = wf.tasks.length;
     const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+    const isEditing = editingWfId === wf.id;
 
     return (
       <div
@@ -303,44 +378,115 @@ export default function Tasks() {
             {wf.description && <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{wf.description}</div>}
           </div>
           <div className="flex items-center gap-1.5 shrink-0 ml-2">
-            <span className="flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400">
-              <Link2 className="w-3 h-3" /> {completedCount}/{totalCount}
-            </span>
+            {isEditing ? (
+              <>
+                <button
+                  onClick={exitEditMode}
+                  className="px-2 py-0.5 text-xs rounded border border-zinc-300 dark:border-zinc-600 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 bg-transparent cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => saveWorkflowEdits(wf)}
+                  className="px-2 py-0.5 text-xs rounded bg-violet-600 hover:bg-violet-700 text-white border-0 cursor-pointer transition-colors"
+                >
+                  Save
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400">
+                  <Link2 className="w-3 h-3" /> {completedCount}/{totalCount}
+                </span>
+                <Pencil
+                  onClick={() => enterEditMode(wf)}
+                  className="w-3.5 h-3.5 text-zinc-300 dark:text-zinc-600 cursor-pointer hover:text-violet-500 transition-colors"
+                />
+                <Trash2
+                  onClick={() => setConfirmDeleteWorkflow({ id: wf.id, name: wf.name })}
+                  className="w-3.5 h-3.5 text-zinc-300 dark:text-zinc-600 cursor-pointer hover:text-red-500 transition-colors"
+                />
+              </>
+            )}
           </div>
         </div>
 
         {/* Progress bar */}
-        <div className="h-0.5 bg-zinc-200 dark:bg-zinc-800 rounded-full mb-3">
-          <div
-            className={`h-full rounded-full transition-all duration-300 ${progress === 100 ? "bg-emerald-500" : "bg-violet-600"}`}
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+        {!isEditing && (
+          <div className="h-0.5 bg-zinc-200 dark:bg-zinc-800 rounded-full mb-3">
+            <div
+              className={`h-full rounded-full transition-all duration-300 ${progress === 100 ? "bg-emerald-500" : "bg-violet-600"}`}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        )}
 
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd(wf)}>
-          <SortableContext items={wf.tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-            {wf.tasks.map((step, si) => {
-              const priorSteps = wf.tasks.slice(0, si);
-              const isLocked = priorSteps.length > 0 && priorSteps.some((s) => s.status !== "completed");
-              const isDependentStep = (step as WorkflowTask & { depends_on_prior?: boolean }).depends_on_prior === true;
-
-              return (
-                <SortableStep
-                  key={step.id}
-                  step={step}
-                  index={si}
-                  onToggle={() => toggleTaskStatus(step)}
-                  onSelect={() => setSelectedTaskId(step.id)}
-                  isLocked={isLocked}
-                  showDivider={isDependentStep}
-                  onToggleSubtask={(sti) => toggleSubtask(step.id, sti)}
+        {isEditing ? (
+          <div className="mt-1">
+            {draftSteps.map((step, si) => (
+              <div key={step.id} className="flex items-center gap-2 py-1.5 border-b border-zinc-100 dark:border-zinc-800">
+                <span className="text-xs text-zinc-400 w-5 text-right shrink-0">{si + 1}.</span>
+                <input
+                  type="text"
+                  value={step.title}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setDraftSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, title: val } : s));
+                  }}
+                  className="flex-1 text-sm bg-transparent border-0 border-b border-zinc-300 dark:border-zinc-600 focus:border-violet-500 focus:outline-none text-zinc-900 dark:text-zinc-100 py-0.5"
                 />
-              );
-            })}
-          </SortableContext>
-        </DndContext>
+                <button
+                  onClick={() => removeDraftStep(step)}
+                  className="p-0 bg-transparent border-0 cursor-pointer text-zinc-300 dark:text-zinc-600 hover:text-red-500 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+            <div className="flex items-center gap-2 mt-2">
+              <Plus className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+              <input
+                type="text"
+                value={newStepInput}
+                onChange={(e) => setNewStepInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") addDraftStep(); }}
+                placeholder="Add a step…"
+                className="flex-1 text-sm bg-transparent border-0 border-b border-zinc-200 dark:border-zinc-700 focus:border-violet-500 focus:outline-none text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 py-0.5"
+              />
+              <button
+                onClick={addDraftStep}
+                className="text-xs text-violet-600 dark:text-violet-400 bg-transparent border-0 cursor-pointer hover:text-violet-800 dark:hover:text-violet-200 transition-colors"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd(wf)}>
+            <SortableContext items={wf.tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+              {wf.tasks.map((step, si) => {
+                const priorSteps = wf.tasks.slice(0, si);
+                const isLocked = priorSteps.length > 0 && priorSteps.some((s) => s.status !== "completed");
+                const isDependentStep = (step as WorkflowTask & { depends_on_prior?: boolean }).depends_on_prior === true;
 
-        {wf.capture_id && (
+                return (
+                  <SortableStep
+                    key={step.id}
+                    step={step}
+                    index={si}
+                    onToggle={() => toggleTaskStatus(step)}
+                    onSelect={() => setSelectedTaskId(step.id)}
+                    isLocked={isLocked}
+                    showDivider={isDependentStep}
+                    onToggleSubtask={(sti) => toggleSubtask(step.id, sti)}
+                  />
+                );
+              })}
+            </SortableContext>
+          </DndContext>
+        )}
+
+        {wf.capture_id && !isEditing && (
           <div className="mt-2 text-xs">
             <Link to={`/captures/${wf.capture_id}`} className="text-violet-600 dark:text-violet-400 no-underline hover:underline">View capture</Link>
           </div>
@@ -420,6 +566,19 @@ export default function Tasks() {
           }
         }}
         onCancel={() => setConfirmDelete(null)}
+      />
+
+      <ConfirmDialog
+        open={!!confirmDeleteWorkflow}
+        title="Delete workflow"
+        description={`Permanently delete "${confirmDeleteWorkflow?.name || ""}" and all its steps? This cannot be undone.`}
+        onConfirm={() => {
+          if (confirmDeleteWorkflow) {
+            deleteWorkflow(confirmDeleteWorkflow.id);
+            setConfirmDeleteWorkflow(null);
+          }
+        }}
+        onCancel={() => setConfirmDeleteWorkflow(null)}
       />
     </div>
   );

@@ -49,6 +49,8 @@ Mailroom is a routing layer first and an AI action engine second.
 - Tasks page with workflow groups (progress bars, step checkboxes) and standalone tasks
 - Workflow auto-completion when all steps are done, auto-reopen on uncomplete
 - **Media & Links** — Capture Detail shows attached images as expandable thumbnails (lightbox), documents as downloadable links, and URLs extracted from capture text as clickable cards
+- **Workflow deletion** — trash icon on each workflow group deletes the entire workflow and all its steps with confirmation
+- **Workflow step editing** — pencil icon enters inline edit mode: edit step titles in place, remove steps with X, add new steps, Save/Cancel
 - **Task deletion** — permanently delete tasks from the Tasks page with confirmation dialog
 - Trash system with styled confirmation dialogs (Radix AlertDialog) and configurable retention
 - Settings page for trash retention and connected surfaces
