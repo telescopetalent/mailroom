@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback, memo } from "react";
+import { useEffect, useState, useCallback, memo, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Calendar, Link2, Trash2, RotateCcw, Check, FolderOpen } from "lucide-react";
+import { Calendar, Link2, Trash2, RotateCcw, Check, FolderOpen, X } from "lucide-react";
 import { api, getApiKey, setApiKey } from "../api/client";
 import CaptureInput from "../components/CaptureInput";
 import ReviewPanel from "../components/ReviewPanel";
@@ -14,6 +14,8 @@ const CaptureCard = memo(function CaptureCard({
   onReopen,
   onReviewComplete,
   projectMap,
+  projects,
+  onAssign,
 }: {
   cap: CaptureItem;
   isExpanded: boolean;
@@ -22,14 +24,36 @@ const CaptureCard = memo(function CaptureCard({
   onReopen: () => void;
   onReviewComplete: () => void;
   projectMap: Map<string, Project>;
+  projects: Project[];
+  onAssign: (captureId: string, currentProjectId: string | null, newProjectId: string | null) => void;
 }) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
   const statusColor = cap.status === "review" ? "#f59e0b" : cap.status === "approved" ? "#22c55e" : "#d1d5db";
   const workflowCount = (cap.extraction?.workflows || []).length;
   const taskCount = (cap.extraction?.tasks || []).length;
   const project = cap.project_id ? projectMap.get(cap.project_id) : null;
 
+  // Close picker on outside click
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [pickerOpen]);
+
+  const handleAssign = (newProjectId: string | null) => {
+    setPickerOpen(false);
+    onAssign(cap.id, cap.project_id, newProjectId);
+  };
+
   return (
-    <div className="mb-2 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors overflow-hidden">
+    <div className="mb-2 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors overflow-visible">
       <div className="px-4 py-3">
         <div className="flex items-start gap-3">
           <div
@@ -69,14 +93,8 @@ const CaptureCard = memo(function CaptureCard({
                   onClick={(e) => e.stopPropagation()}
                   className="flex items-center gap-1 no-underline"
                 >
-                  <span
-                    className="w-2 h-2 rounded-full shrink-0"
-                    style={{ background: project.color || "#7c3aed" }}
-                  />
-                  <span style={{ color: project.color || "#7c3aed" }} className="font-medium">
-                    {project.name}
-                  </span>
-                  <FolderOpen className="w-3 h-3" style={{ color: project.color || "#7c3aed" }} />
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: project.color || "#7c3aed" }} />
+                  <span style={{ color: project.color || "#7c3aed" }} className="font-medium">{project.name}</span>
                 </Link>
               )}
             </div>
@@ -115,6 +133,55 @@ const CaptureCard = memo(function CaptureCard({
                 Reopen
               </button>
             )}
+
+            {/* Project picker */}
+            <div ref={pickerRef} className="relative">
+              <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPickerOpen((v) => !v); }}
+                title={project ? `In project: ${project.name}` : "Move to project"}
+                style={project ? { borderColor: project.color || "#7c3aed", color: project.color || "#7c3aed" } : undefined}
+                className={`flex items-center justify-center w-7 h-7 rounded-md border transition-colors cursor-pointer bg-transparent ${
+                  project ? "" : "border-zinc-200 dark:border-zinc-700 text-zinc-400 hover:text-violet-500 hover:border-violet-400"
+                }`}
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+              </button>
+
+              {pickerOpen && (
+                <div className="absolute right-0 top-8 z-50 w-48 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg py-1">
+                  <p className="px-3 py-1.5 text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">
+                    Move to project
+                  </p>
+                  {projects.length === 0 && (
+                    <p className="px-3 py-2 text-xs text-zinc-400">No projects yet.</p>
+                  )}
+                  {projects.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={(e) => { e.stopPropagation(); handleAssign(p.id); }}
+                      className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 border-0 bg-transparent cursor-pointer transition-colors"
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: p.color || "#7c3aed" }} />
+                      <span className="truncate flex-1">{p.name}</span>
+                      {cap.project_id === p.id && <Check className="w-3 h-3 text-violet-500 shrink-0" />}
+                    </button>
+                  ))}
+                  {cap.project_id && (
+                    <>
+                      <div className="my-1 border-t border-zinc-100 dark:border-zinc-800" />
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleAssign(null); }}
+                        className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 border-0 bg-transparent cursor-pointer transition-colors"
+                      >
+                        <X className="w-3 h-3 shrink-0" />
+                        Remove from project
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTrash(); }}
               title="Move to trash"
@@ -144,6 +211,7 @@ export default function Dashboard() {
   const [keyInput, setKeyInput] = useState("");
   const [user, setUser] = useState<{ email: string; name: string } | null>(null);
   const [captures, setCaptures] = useState<CaptureItem[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [projectMap, setProjectMap] = useState<Map<string, Project>>(new Map());
   const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -157,6 +225,7 @@ export default function Dashboard() {
     ])
       .then(([caps, projs]) => {
         setCaptures(caps.items);
+        setProjects(projs.items);
         setProjectMap(new Map(projs.items.map((p) => [p.id, p])));
       })
       .catch(() => {})
@@ -186,6 +255,22 @@ export default function Dashboard() {
     await api(`/captures/${id}/reopen`, { method: "POST" });
     loadCaptures();
   }, [loadCaptures]);
+
+  const assignProject = useCallback(async (
+    captureId: string,
+    currentProjectId: string | null,
+    newProjectId: string | null,
+  ) => {
+    if (newProjectId === null && currentProjectId) {
+      await api(`/projects/${currentProjectId}/captures/${captureId}`, { method: "DELETE" });
+    } else if (newProjectId) {
+      await api(`/projects/${newProjectId}/captures/${captureId}`, { method: "POST" });
+    }
+    // Optimistic update — no full reload needed
+    setCaptures((prev) =>
+      prev.map((c) => c.id === captureId ? { ...c, project_id: newProjectId } : c)
+    );
+  }, []);
 
   if (!connected) {
     return (
@@ -238,6 +323,8 @@ export default function Dashboard() {
           onReopen={() => reopenCapture(cap.id)}
           onReviewComplete={() => { setExpandedId(null); loadCaptures(); }}
           projectMap={projectMap}
+          projects={projects}
+          onAssign={assignProject}
         />
       ))}
     </div>
