@@ -316,6 +316,8 @@ class ProjectResponse(BaseModel):
     description: Optional[str] = None
     color: Optional[str] = None
     capture_count: int = 0
+    workflow_count: int = 0
+    task_count: int = 0
     created_at: datetime
 
 

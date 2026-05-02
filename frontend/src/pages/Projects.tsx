@@ -174,7 +174,11 @@ export default function Projects() {
                 )}
               </div>
               <span className="text-xs text-zinc-400 shrink-0">
-                {project.capture_count} capture{project.capture_count !== 1 ? "s" : ""}
+                {[
+                  project.capture_count > 0 && `${project.capture_count} capture${project.capture_count !== 1 ? "s" : ""}`,
+                  project.workflow_count > 0 && `${project.workflow_count} workflow${project.workflow_count !== 1 ? "s" : ""}`,
+                  project.task_count > 0 && `${project.task_count} task${project.task_count !== 1 ? "s" : ""}`,
+                ].filter(Boolean).join(" · ") || "Empty"}
               </span>
             </Link>
           ))}

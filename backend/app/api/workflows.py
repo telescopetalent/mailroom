@@ -85,6 +85,7 @@ def list_workflows(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     status: str = Query(None, description="Filter by status: open, completed"),
+    project_id: str = Query(None, description="Filter by project UUID"),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -97,6 +98,14 @@ def list_workflows(
 
     if status:
         query = query.filter(ApprovedWorkflowRow.status == status)
+
+    if project_id:
+        import uuid as _uuid
+        try:
+            pid = _uuid.UUID(project_id)
+            query = query.filter(ApprovedWorkflowRow.project_id == pid)
+        except ValueError:
+            pass
 
     total = query.count()
     workflows = query.offset((page - 1) * page_size).limit(page_size).all()

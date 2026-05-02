@@ -48,6 +48,8 @@ export interface Project {
   description: string | null;
   color: string | null;
   capture_count: number;
+  workflow_count: number;
+  task_count: number;
   created_at: string;
 }
 

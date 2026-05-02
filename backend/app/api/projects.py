@@ -24,7 +24,12 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 CAPTURE_ACTIVE_STATUSES = ("pending", "processing", "review", "approved", "rejected")
 
 
-def _project_to_response(project: ProjectRow, capture_count: int) -> ProjectResponse:
+def _project_to_response(
+    project: ProjectRow,
+    capture_count: int,
+    workflow_count: int = 0,
+    task_count: int = 0,
+) -> ProjectResponse:
     return ProjectResponse(
         id=project.id,
         workspace_id=project.workspace_id,
@@ -32,6 +37,8 @@ def _project_to_response(project: ProjectRow, capture_count: int) -> ProjectResp
         description=project.description,
         color=project.color,
         capture_count=capture_count,
+        workflow_count=workflow_count,
+        task_count=task_count,
         created_at=project.created_at,
     )
 
@@ -66,6 +73,35 @@ def _capture_counts(db: Session, project_ids: list[UUID]) -> dict[UUID, int]:
     return {pid: count for pid, count in rows}
 
 
+def _workflow_counts(db: Session, project_ids: list[UUID]) -> dict[UUID, int]:
+    """Batch-load workflow counts per project (all statuses)."""
+    if not project_ids:
+        return {}
+    rows = (
+        db.query(ApprovedWorkflowRow.project_id, func.count(ApprovedWorkflowRow.id))
+        .filter(ApprovedWorkflowRow.project_id.in_(project_ids))
+        .group_by(ApprovedWorkflowRow.project_id)
+        .all()
+    )
+    return {pid: count for pid, count in rows}
+
+
+def _task_counts(db: Session, project_ids: list[UUID]) -> dict[UUID, int]:
+    """Batch-load standalone task counts per project (all statuses)."""
+    if not project_ids:
+        return {}
+    rows = (
+        db.query(ApprovedTaskRow.project_id, func.count(ApprovedTaskRow.id))
+        .filter(
+            ApprovedTaskRow.project_id.in_(project_ids),
+            ApprovedTaskRow.workflow_id.is_(None),
+        )
+        .group_by(ApprovedTaskRow.project_id)
+        .all()
+    )
+    return {pid: count for pid, count in rows}
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -83,9 +119,15 @@ def list_projects(
         .order_by(ProjectRow.created_at.asc())
         .all()
     )
-    counts = _capture_counts(db, [p.id for p in projects])
+    pids = [p.id for p in projects]
+    cap_counts = _capture_counts(db, pids)
+    wf_counts = _workflow_counts(db, pids)
+    t_counts = _task_counts(db, pids)
     return ProjectListResponse(
-        items=[_project_to_response(p, counts.get(p.id, 0)) for p in projects]
+        items=[
+            _project_to_response(p, cap_counts.get(p.id, 0), wf_counts.get(p.id, 0), t_counts.get(p.id, 0))
+            for p in projects
+        ]
     )
 
 
@@ -122,8 +164,13 @@ def get_project(
 ):
     """Get a single project."""
     project = _get_project_or_404(db, project_id, current_user["workspace_id"])
-    counts = _capture_counts(db, [project.id])
-    return _project_to_response(project, counts.get(project.id, 0))
+    pids = [project.id]
+    return _project_to_response(
+        project,
+        _capture_counts(db, pids).get(project.id, 0),
+        _workflow_counts(db, pids).get(project.id, 0),
+        _task_counts(db, pids).get(project.id, 0),
+    )
 
 
 @router.patch("/{project_id}", response_model=ProjectResponse)
@@ -148,8 +195,13 @@ def update_project(
 
     db.commit()
     db.refresh(project)
-    counts = _capture_counts(db, [project.id])
-    return _project_to_response(project, counts.get(project.id, 0))
+    pids = [project.id]
+    return _project_to_response(
+        project,
+        _capture_counts(db, pids).get(project.id, 0),
+        _workflow_counts(db, pids).get(project.id, 0),
+        _task_counts(db, pids).get(project.id, 0),
+    )
 
 
 @router.delete("/{project_id}")

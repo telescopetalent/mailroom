@@ -392,14 +392,18 @@ export default function Tasks() {
           />
           {/* Project picker for standalone task */}
           <div id={`picker-task:${task.id}`} className="relative">
-            <FolderOpen
+            <button
               onClick={() => setOpenPickerId(openPickerId === `task:${task.id}` ? null : `task:${task.id}`)}
-              className="w-3.5 h-3.5 cursor-pointer transition-colors"
-              style={task.project_id
-                ? { color: projects.find((p) => p.id === task.project_id)?.color || "#7c3aed" }
-                : undefined}
               title={task.project_id ? `Project: ${projects.find((p) => p.id === task.project_id)?.name}` : "Add to project"}
-            />
+              className="p-0 border-0 bg-transparent cursor-pointer leading-none"
+            >
+              <FolderOpen
+                className="w-3.5 h-3.5 transition-colors"
+                style={task.project_id
+                  ? { color: projects.find((p) => p.id === task.project_id)?.color || "#7c3aed" }
+                  : undefined}
+              />
+            </button>
             {openPickerId === `task:${task.id}` && (
               <div className="absolute right-0 top-5 z-50 w-44 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg py-1">
                 <p className="px-3 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Move to project</p>
@@ -474,14 +478,18 @@ export default function Tasks() {
                 </span>
                 {/* Project picker for workflow */}
                 <div id={`picker-wf:${wf.id}`} className="relative">
-                  <FolderOpen
+                  <button
                     onClick={() => setOpenPickerId(openPickerId === `wf:${wf.id}` ? null : `wf:${wf.id}`)}
-                    className="w-3.5 h-3.5 cursor-pointer transition-colors"
-                    style={wf.project_id
-                      ? { color: projects.find((p) => p.id === wf.project_id)?.color || "#7c3aed" }
-                      : undefined}
                     title={wf.project_id ? `Project: ${projects.find((p) => p.id === wf.project_id)?.name}` : "Add to project"}
-                  />
+                    className="p-0 border-0 bg-transparent cursor-pointer leading-none"
+                  >
+                    <FolderOpen
+                      className="w-3.5 h-3.5 transition-colors"
+                      style={wf.project_id
+                        ? { color: projects.find((p) => p.id === wf.project_id)?.color || "#7c3aed" }
+                        : undefined}
+                    />
+                  </button>
                   {openPickerId === `wf:${wf.id}` && (
                     <div className="absolute right-0 top-5 z-50 w-44 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg py-1">
                       <p className="px-3 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Move to project</p>
