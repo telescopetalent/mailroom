@@ -2,23 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { RotateCcw, Trash2 } from "lucide-react";
 import { api } from "../api/client";
 import ConfirmDialog from "../components/ConfirmDialog";
-
-interface TrashedCapture {
-  id: string;
-  source: string;
-  content_type: string;
-  status: string;
-  captured_at: string;
-  trashed_at: string | null;
-  previous_status: string | null;
-  normalized_text: string | null;
-  extraction: { summary: string | null } | null;
-}
-
-interface TrashedList {
-  items: TrashedCapture[];
-  pagination: { total_count: number };
-}
+import type { TrashedCapture, TrashedList } from "../types";
 
 export default function Trash() {
   const [captures, setCaptures] = useState<TrashedCapture[]>([]);

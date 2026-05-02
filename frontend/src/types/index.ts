@@ -163,3 +163,43 @@ export interface ReviewDecision {
   action: "approve" | "reject" | "edit";
   edited_value?: Record<string, unknown>;
 }
+
+// --- Trash ---
+
+export interface TrashedCapture {
+  id: string;
+  source: string;
+  content_type: string;
+  status: string;
+  captured_at: string;
+  trashed_at: string | null;
+  previous_status: string | null;
+  normalized_text: string | null;
+  extraction: { summary: string | null } | null;
+}
+
+export interface TrashedList {
+  items: TrashedCapture[];
+  pagination: { total_count: number };
+}
+
+// --- Settings ---
+
+export interface WorkspaceSettings {
+  id: string;
+  name: string;
+  trash_retention_days: number;
+}
+
+export interface SurfaceConnection {
+  id: string;
+  surface: string;
+  external_id: string;
+  config: Record<string, unknown> | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface SurfaceConnectionList {
+  items: SurfaceConnection[];
+}

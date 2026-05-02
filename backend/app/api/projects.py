@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -142,7 +143,6 @@ def create_project(
     if not name:
         raise ValidationError("name is required")
 
-    from datetime import datetime
     project = ProjectRow(
         workspace_id=current_user["workspace_id"],
         name=name,

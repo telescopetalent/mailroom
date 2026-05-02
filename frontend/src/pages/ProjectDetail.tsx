@@ -3,18 +3,8 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { FolderOpen, ArrowLeft, Pencil, Trash2, Plus, X, Check, Calendar, Link2, ChevronRight } from "lucide-react";
 import { api } from "../api/client";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { COLOR_OPTIONS } from "../constants";
 import type { Project, CaptureItem, CaptureList, Workflow, WorkflowList, Task, TaskList } from "../types";
-
-const COLOR_OPTIONS = [
-  { label: "Violet", value: "#7c3aed" },
-  { label: "Blue", value: "#2563eb" },
-  { label: "Green", value: "#16a34a" },
-  { label: "Red", value: "#dc2626" },
-  { label: "Amber", value: "#d97706" },
-  { label: "Cyan", value: "#0891b2" },
-  { label: "Pink", value: "#db2777" },
-  { label: "Lime", value: "#65a30d" },
-];
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();

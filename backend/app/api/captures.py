@@ -8,7 +8,7 @@ import os
 import uuid as uuid_mod
 from datetime import datetime
 from io import BytesIO
-from typing import Dict, List, Sequence
+from typing import Sequence
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
@@ -113,7 +113,7 @@ def _capture_to_response(
 def _get_capture_metadata(
     db: Session,
     capture_ids: Sequence[UUID],
-) -> tuple[Dict[UUID, ExtractionRow], Dict[UUID, int]]:
+) -> tuple[dict[UUID, ExtractionRow], dict[UUID, int]]:
     """Batch-load extractions and attachment counts for a list of capture IDs.
 
     Returns:
@@ -123,7 +123,7 @@ def _get_capture_metadata(
         return {}, {}
 
     # Batch-load extractions keyed by capture_id
-    extractions_map: Dict[UUID, ExtractionRow] = {}
+    extractions_map: dict[UUID, ExtractionRow] = {}
     extraction_rows = (
         db.query(ExtractionRow)
         .filter(ExtractionRow.capture_id.in_(capture_ids))
@@ -133,7 +133,7 @@ def _get_capture_metadata(
         extractions_map[ext.capture_id] = ext
 
     # Batch-load attachment counts using GROUP BY
-    att_counts_map: Dict[UUID, int] = {cid: 0 for cid in capture_ids}
+    att_counts_map: dict[UUID, int] = {cid: 0 for cid in capture_ids}
     att_rows = (
         db.query(AttachmentRow.capture_id, func.count(AttachmentRow.id))
         .filter(AttachmentRow.capture_id.in_(capture_ids))
@@ -267,7 +267,7 @@ MAX_FILES = 5
 @router.post("/upload", response_model=None, status_code=status.HTTP_201_CREATED)
 def create_capture_with_files(
     metadata: str = Form(...),
-    files: List[UploadFile] = File(default=[]),
+    files: list[UploadFile] = File(default=[]),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -361,9 +361,8 @@ def list_captures(
     )
 
     if project_id:
-        import uuid as _uuid
         try:
-            pid = _uuid.UUID(project_id)
+            pid = uuid_mod.UUID(project_id)
         except ValueError:
             pid = None
         query = query.filter(CaptureRow.project_id == pid) if pid else query

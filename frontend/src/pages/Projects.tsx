@@ -5,23 +5,13 @@ import {
   List, LayoutList, Check, Link2, Calendar,
 } from "lucide-react";
 import { api } from "../api/client";
+import { COLOR_OPTIONS } from "../constants";
 import type {
   Project, ProjectList,
   Workflow, WorkflowList,
   Task, TaskList,
   CaptureItem, CaptureList,
 } from "../types";
-
-const COLOR_OPTIONS = [
-  { label: "Violet", value: "#7c3aed" },
-  { label: "Blue", value: "#2563eb" },
-  { label: "Green", value: "#16a34a" },
-  { label: "Red", value: "#dc2626" },
-  { label: "Amber", value: "#d97706" },
-  { label: "Cyan", value: "#0891b2" },
-  { label: "Pink", value: "#db2777" },
-  { label: "Lime", value: "#65a30d" },
-];
 
 type ViewMode = "compact" | "expanded";
 

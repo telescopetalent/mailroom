@@ -1,26 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Check, Plus, X } from "lucide-react";
 import { api } from "../api/client";
 import ConfirmDialog from "../components/ConfirmDialog";
-
-interface WorkspaceSettings {
-  id: string;
-  name: string;
-  trash_retention_days: number;
-}
-
-interface SurfaceConnection {
-  id: string;
-  surface: string;
-  external_id: string;
-  config: Record<string, unknown> | null;
-  is_active: boolean;
-  created_at: string;
-}
-
-interface SurfaceConnectionList {
-  items: SurfaceConnection[];
-}
+import type { WorkspaceSettings, SurfaceConnection, SurfaceConnectionList } from "../types";
 
 const cardCls = "p-5 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-white dark:bg-zinc-900 mb-5";
 const sectionTitleCls = "text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1";
@@ -41,6 +23,12 @@ export default function Settings() {
   const [addingConnection, setAddingConnection] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
 
+  const loadConnections = useCallback(() => {
+    api<SurfaceConnectionList>("/surface-connections")
+      .then((data) => setConnections(data.items))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     api<WorkspaceSettings>("/workspaces/current")
       .then((data) => {
@@ -50,13 +38,7 @@ export default function Settings() {
       .catch((e) => setError(e.message));
 
     loadConnections();
-  }, []);
-
-  const loadConnections = () => {
-    api<SurfaceConnectionList>("/surface-connections")
-      .then((data) => setConnections(data.items))
-      .catch(() => {});
-  };
+  }, [loadConnections]);
 
   const save = async () => {
     setSaving(true);

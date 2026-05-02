@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import uuid as _uuid
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -213,7 +214,6 @@ def list_tasks(
         query = query.filter(ApprovedTaskRow.status == status)
 
     if project_id:
-        import uuid as _uuid
         try:
             pid = _uuid.UUID(project_id)
             # Standalone tasks only — workflow tasks show under their workflow
