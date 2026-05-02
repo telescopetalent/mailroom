@@ -97,6 +97,7 @@ export interface Task {
   due_date: string | null;
   priority: string;
   status: string;
+  project_id: string | null;
   source: string;
   capture_id: string | null;
   workflow_id: string | null;
@@ -143,6 +144,7 @@ export interface Workflow {
   description: string | null;
   status: string;
   capture_id: string | null;
+  project_id: string | null;
   tasks: WorkflowTask[];
 }
 

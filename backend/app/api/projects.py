@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.auth import get_current_user
 from app.core.database import get_db
 from app.core.exceptions import NotFoundError, ValidationError
-from app.db.models import CaptureRow, ProjectRow
+from app.db.models import ApprovedTaskRow, ApprovedWorkflowRow, CaptureRow, ProjectRow
 from app.models.api_schemas import (
     CreateProjectRequest,
     ProjectListResponse,
@@ -161,10 +161,9 @@ def delete_project(
     """Delete a project (captures are unassigned, not deleted)."""
     project = _get_project_or_404(db, project_id, current_user["workspace_id"])
 
-    # Null out project_id on all associated captures
-    db.query(CaptureRow).filter(CaptureRow.project_id == project.id).update(
-        {"project_id": None}
-    )
+    # Null out project_id on all associated items
+    for model in (CaptureRow, ApprovedWorkflowRow, ApprovedTaskRow):
+        db.query(model).filter(model.project_id == project.id).update({"project_id": None})
     db.delete(project)
     db.commit()
     return {"status": "ok"}
@@ -219,5 +218,113 @@ def remove_capture_from_project(
         raise NotFoundError("Capture")
 
     capture.project_id = None
+    db.commit()
+    return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Workflow assignment
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{project_id}/workflows/{workflow_id}")
+def add_workflow_to_project(
+    project_id: UUID,
+    workflow_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Assign a workflow to a project."""
+    project = _get_project_or_404(db, project_id, current_user["workspace_id"])
+    workflow = (
+        db.query(ApprovedWorkflowRow)
+        .filter(
+            ApprovedWorkflowRow.id == workflow_id,
+            ApprovedWorkflowRow.workspace_id == current_user["workspace_id"],
+        )
+        .first()
+    )
+    if not workflow:
+        raise NotFoundError("Workflow")
+    workflow.project_id = project.id
+    db.commit()
+    return {"status": "ok"}
+
+
+@router.delete("/{project_id}/workflows/{workflow_id}")
+def remove_workflow_from_project(
+    project_id: UUID,
+    workflow_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Remove a workflow from a project."""
+    _get_project_or_404(db, project_id, current_user["workspace_id"])
+    workflow = (
+        db.query(ApprovedWorkflowRow)
+        .filter(
+            ApprovedWorkflowRow.id == workflow_id,
+            ApprovedWorkflowRow.workspace_id == current_user["workspace_id"],
+            ApprovedWorkflowRow.project_id == project_id,
+        )
+        .first()
+    )
+    if not workflow:
+        raise NotFoundError("Workflow")
+    workflow.project_id = None
+    db.commit()
+    return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Standalone task assignment
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{project_id}/tasks/{task_id}")
+def add_task_to_project(
+    project_id: UUID,
+    task_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Assign a standalone task to a project."""
+    project = _get_project_or_404(db, project_id, current_user["workspace_id"])
+    task = (
+        db.query(ApprovedTaskRow)
+        .filter(
+            ApprovedTaskRow.id == task_id,
+            ApprovedTaskRow.workspace_id == current_user["workspace_id"],
+        )
+        .first()
+    )
+    if not task:
+        raise NotFoundError("Task")
+    task.project_id = project.id
+    db.commit()
+    return {"status": "ok"}
+
+
+@router.delete("/{project_id}/tasks/{task_id}")
+def remove_task_from_project(
+    project_id: UUID,
+    task_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Remove a standalone task from a project."""
+    _get_project_or_404(db, project_id, current_user["workspace_id"])
+    task = (
+        db.query(ApprovedTaskRow)
+        .filter(
+            ApprovedTaskRow.id == task_id,
+            ApprovedTaskRow.workspace_id == current_user["workspace_id"],
+            ApprovedTaskRow.project_id == project_id,
+        )
+        .first()
+    )
+    if not task:
+        raise NotFoundError("Task")
+    task.project_id = None
     db.commit()
     return {"status": "ok"}

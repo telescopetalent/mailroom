@@ -175,6 +175,7 @@ def _task_to_response(
         blocked_by_task_title=blocked_by_task_title,
         is_blocked=is_blocked,
         status=task.status,
+        project_id=task.project_id,
         source=source,
         source_ref=task.source_ref,
         capture_id=task.capture_id,

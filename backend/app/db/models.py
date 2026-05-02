@@ -239,6 +239,9 @@ class ApprovedWorkflowRow(Base):
     name = Column(String, nullable=False)
     description = Column(Text)
     status = Column(WORKFLOW_STATUS_ENUM, default="open", nullable=False)
+    project_id = Column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     approved_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
@@ -283,6 +286,9 @@ class ApprovedTaskRow(Base):
     )
     blocked_by_task_id = Column(
         UUID(as_uuid=True), ForeignKey("approved_tasks.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    project_id = Column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
     )
     source_ref = Column(JSONB, default=dict)
     status = Column(TASK_STATUS_ENUM, default="open", nullable=False)

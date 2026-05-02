@@ -32,6 +32,7 @@ def _workflow_to_response(workflow: ApprovedWorkflowRow, tasks: list[ApprovedTas
         description=workflow.description,
         status=workflow.status,
         capture_id=workflow.capture_id,
+        project_id=workflow.project_id,
         tasks=[
             WorkflowTaskResponse(
                 id=t.id,

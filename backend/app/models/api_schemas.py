@@ -156,6 +156,7 @@ class TaskResponse(BaseModel):
     blocked_by_task_title: Optional[str] = None
     is_blocked: bool = False
     status: TaskStatus
+    project_id: Optional[UUID] = None
     source: CaptureSource
     source_ref: Optional[dict[str, Any]] = None
     capture_id: Optional[UUID] = None
@@ -227,6 +228,7 @@ class WorkflowResponse(BaseModel):
     description: Optional[str] = None
     status: WorkflowStatus
     capture_id: Optional[UUID] = None
+    project_id: Optional[UUID] = None
     tasks: list[WorkflowTaskResponse] = Field(default_factory=list)
     approved_at: datetime
     created_at: datetime

@@ -11,7 +11,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Lock, Check, ChevronRight, Calendar, Link2, Unlock, Trash2, Pencil, Plus, X } from "lucide-react";
+import { GripVertical, Lock, Check, ChevronRight, Calendar, Link2, Unlock, Trash2, Pencil, Plus, X, FolderOpen } from "lucide-react";
 import { api } from "../api/client";
 import TaskDetailModal from "../components/TaskDetailModal";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -23,6 +23,8 @@ import type {
   WorkflowTask,
   Workflow,
   WorkflowList,
+  Project,
+  ProjectList,
 } from "../types";
 
 const SortableStep = memo(function SortableStep({ step, index, onToggle, onSelect, isLocked, showDivider, onToggleSubtask }: { step: WorkflowTask; index: number; onToggle: () => void; onSelect: () => void; isLocked?: boolean; showDivider?: boolean; onToggleSubtask?: (subtaskIndex: number) => void }) {
@@ -105,6 +107,7 @@ export default function Tasks() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
   const [completedWorkflows, setCompletedWorkflows] = useState<Workflow[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [showCompleted, setShowCompleted] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -115,15 +118,51 @@ export default function Tasks() {
   const [draftSteps, setDraftSteps] = useState<(WorkflowTask & { isNew?: boolean })[]>([]);
   const [deletedStepIds, setDeletedStepIds] = useState<string[]>([]);
   const [newStepInput, setNewStepInput] = useState("");
+  // openPickerId: "wf:{id}" | "task:{id}" | null
+  const [openPickerId, setOpenPickerId] = useState<string | null>(null);
+
+  // Close project picker on outside click
+  useEffect(() => {
+    if (!openPickerId) return;
+    const handler = (e: MouseEvent) => {
+      const el = document.getElementById(`picker-${openPickerId}`);
+      if (el && !el.contains(e.target as Node)) setOpenPickerId(null);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [openPickerId]);
+
+  const assignToProject = async (
+    type: "workflow" | "task",
+    itemId: string,
+    currentProjectId: string | null,
+    newProjectId: string | null,
+  ) => {
+    setOpenPickerId(null);
+    const path = type === "workflow" ? "workflows" : "tasks";
+    if (newProjectId === null && currentProjectId) {
+      await api(`/projects/${currentProjectId}/${path}/${itemId}`, { method: "DELETE" });
+    } else if (newProjectId) {
+      await api(`/projects/${newProjectId}/${path}/${itemId}`, { method: "POST" });
+    }
+    // Optimistic update
+    if (type === "workflow") {
+      setWorkflows((prev) => prev.map((w) => w.id === itemId ? { ...w, project_id: newProjectId } : w));
+    } else {
+      setStandaloneTasks((prev) => prev.map((t) => t.id === itemId ? { ...t, project_id: newProjectId } : t));
+    }
+  };
 
   const loadAll = useCallback(() => {
     Promise.all([
       api<TaskList>("/tasks?status=open"),
       api<WorkflowList>("/workflows?status=open"),
+      api<ProjectList>("/projects"),
     ])
-      .then(([taskData, wfData]) => {
+      .then(([taskData, wfData, projData]) => {
         setStandaloneTasks(taskData.items.filter((t) => !t.workflow_id));
         setWorkflows(wfData.items);
+        setProjects(projData.items);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -351,6 +390,40 @@ export default function Tasks() {
             onClick={() => setConfirmDelete({ id: task.id, title: task.title })}
             className="w-3.5 h-3.5 text-zinc-300 dark:text-zinc-600 cursor-pointer hover:text-red-500 transition-colors"
           />
+          {/* Project picker for standalone task */}
+          <div id={`picker-task:${task.id}`} className="relative">
+            <FolderOpen
+              onClick={() => setOpenPickerId(openPickerId === `task:${task.id}` ? null : `task:${task.id}`)}
+              className="w-3.5 h-3.5 cursor-pointer transition-colors"
+              style={task.project_id
+                ? { color: projects.find((p) => p.id === task.project_id)?.color || "#7c3aed" }
+                : undefined}
+              title={task.project_id ? `Project: ${projects.find((p) => p.id === task.project_id)?.name}` : "Add to project"}
+            />
+            {openPickerId === `task:${task.id}` && (
+              <div className="absolute right-0 top-5 z-50 w-44 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg py-1">
+                <p className="px-3 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Move to project</p>
+                {projects.length === 0 && <p className="px-3 py-2 text-xs text-zinc-400">No projects yet.</p>}
+                {projects.map((p) => (
+                  <button key={p.id} onClick={() => assignToProject("task", task.id, task.project_id, p.id)}
+                    className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 border-0 bg-transparent cursor-pointer">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color || "#7c3aed" }} />
+                    <span className="truncate flex-1">{p.name}</span>
+                    {task.project_id === p.id && <Check className="w-3 h-3 text-violet-500 shrink-0" />}
+                  </button>
+                ))}
+                {task.project_id && (
+                  <>
+                    <div className="my-1 border-t border-zinc-100 dark:border-zinc-800" />
+                    <button onClick={() => assignToProject("task", task.id, task.project_id, null)}
+                      className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 border-0 bg-transparent cursor-pointer">
+                      <X className="w-3 h-3 shrink-0" /> Remove from project
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
           <ChevronRight
             onClick={() => setSelectedTaskId(task.id)}
             className="w-4 h-4 text-zinc-300 dark:text-zinc-600 cursor-pointer hover:text-zinc-500 transition-colors"
@@ -399,6 +472,40 @@ export default function Tasks() {
                 <span className="flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400">
                   <Link2 className="w-3 h-3" /> {completedCount}/{totalCount}
                 </span>
+                {/* Project picker for workflow */}
+                <div id={`picker-wf:${wf.id}`} className="relative">
+                  <FolderOpen
+                    onClick={() => setOpenPickerId(openPickerId === `wf:${wf.id}` ? null : `wf:${wf.id}`)}
+                    className="w-3.5 h-3.5 cursor-pointer transition-colors"
+                    style={wf.project_id
+                      ? { color: projects.find((p) => p.id === wf.project_id)?.color || "#7c3aed" }
+                      : undefined}
+                    title={wf.project_id ? `Project: ${projects.find((p) => p.id === wf.project_id)?.name}` : "Add to project"}
+                  />
+                  {openPickerId === `wf:${wf.id}` && (
+                    <div className="absolute right-0 top-5 z-50 w-44 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg py-1">
+                      <p className="px-3 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Move to project</p>
+                      {projects.length === 0 && <p className="px-3 py-2 text-xs text-zinc-400">No projects yet.</p>}
+                      {projects.map((p) => (
+                        <button key={p.id} onClick={() => assignToProject("workflow", wf.id, wf.project_id, p.id)}
+                          className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 border-0 bg-transparent cursor-pointer">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color || "#7c3aed" }} />
+                          <span className="truncate flex-1">{p.name}</span>
+                          {wf.project_id === p.id && <Check className="w-3 h-3 text-violet-500 shrink-0" />}
+                        </button>
+                      ))}
+                      {wf.project_id && (
+                        <>
+                          <div className="my-1 border-t border-zinc-100 dark:border-zinc-800" />
+                          <button onClick={() => assignToProject("workflow", wf.id, wf.project_id, null)}
+                            className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 border-0 bg-transparent cursor-pointer">
+                            <X className="w-3 h-3 shrink-0" /> Remove from project
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <Pencil
                   onClick={() => enterEditMode(wf)}
                   className="w-3.5 h-3.5 text-zinc-300 dark:text-zinc-600 cursor-pointer hover:text-violet-500 transition-colors"
